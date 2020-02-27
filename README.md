@@ -7,4 +7,4 @@
 0) Uderstand the code
 1) Move from Python2 to Python3
 2) Test, improve and stabilize current functionality
-3) extend functionaloty
+3) Extend functionaloty
