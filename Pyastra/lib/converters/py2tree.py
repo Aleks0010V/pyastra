@@ -42,33 +42,36 @@ import os.path
 import Pyastra.lib as pyastra
 
 from Pyastra.lib import ERROR
-from ast import Assign, Module, stmt
+from ast import Assign, Module, stmt, parse, ImportFrom, Import, FunctionType, ClassDef
 
-converts_from='py'
-converts_to='tree'
+converts_from = 'py'
+converts_to = 'tree'
+
 
 def get_ports():
     """@return: A list of supported ports."""
     return []
 
+
 def get_procs(port):
     """@return: A list of supported processors."""
     return []
 
+
 class Converter:
     """
-    Main convertor class
+    Main converter class
     @see: L{converters}
     """
     modified = True
-    interrupts_on=False
-    meta={}
-    
+    interrupts_on = False
+    meta = {}
+
     def __init__(self, root, opts):
-        self.opts=opts
-        self.say=self.opts['pyastra'].say
-        self.data=self.scan(compiler.parse(root))
-        self.data.interrupts_on=self.interrupts_on
+        self.opts = opts
+        self.say = self.opts['pyastra'].say
+        self.data = self.scan(parse(root))
+        self.data.interrupts_on = self.interrupts_on
         self.data.src = root
 
     def scan(self, node, namespace=''):
@@ -80,9 +83,9 @@ class Converter:
         @type  namespace: C{str}
         """
         if isinstance(node, list):
-            ret=[]
+            ret = []
             for n in node:
-                rnode=self.scan(n, namespace)
+                rnode = self.scan(n, namespace)
                 if type(rnode) in (list, tuple):
                     ret += rnode
                 else:
@@ -90,33 +93,34 @@ class Converter:
             return ret
         elif isinstance(node, Assign):
             return node
-        elif isinstance(node, From):
+        elif isinstance(node, ImportFrom):  # From replaced by ImportFrom ToDo - need to be checked
             if node.names != [('*', None)]:
-                self.say('only "from <module_name> import *" input statement is supported while', ERROR, self.lineno(node))
+                self.say('only "from <module_name> import *" input statement is supported while', ERROR,
+                         self.lineno(node))
                 return
-            root=self._import(node.modname)
+            root = self._import(node.modname)
             if root.interrupts_on:
                 self.interrupts_on = True
             return self.scan(root, namespace)
-        elif isinstance(node, Function):
+        elif isinstance(node, FunctionType):
             if node.name == 'on_interrupt':
-                self.interrupts_on=True
+                self.interrupts_on = True
                 return node
             else:
                 return node
         elif isinstance(node, Import):
             # TODO: Test it!
-            ret=[]
+            ret = []
             for name in node.names:
-                iname=name[1] or name[0]
-                root=self._import(name[0])
+                iname = name[1] or name[0]
+                root = self._import(name[0])
                 if root.interrupts_on:
                     self.interrupts_on = True
                 ret += [self.scan(root, iname)]
             return ret
         elif isinstance(node, Module):
-            m=Module(node.doc, self.scan(node.node, namespace))
-            m.namespace=namespace
+            m = Module(node.__doc__, self.scan(node.node, namespace))
+            m.namespace = namespace
             if hasattr(node, 'src'):
                 m.src = node.src
             return m
@@ -132,13 +136,13 @@ class Converter:
         @type  modname: C{str}
         @return: AST tree of the imported module.
         """
-        name='%s.py' % (os.path.sep.join(modname.split('.')))
+        name = f'{os.path.sep.join(modname.split("."))}.py'
         if not os.path.exists(name):
-            name=os.path.join(pyastra.ports.pic14.modules.__path__[0], name)
+            name = os.path.join(pyastra.ports.pic14.modules.__path__[0], name)
         if not os.path.exists(name):
-            name=os.path.join(pyastra.modules.__path__[0], name)
-        c=pyastra.Pyastra(name, self.opts['caller_select'], self.say,
-                trg_t=['tree'], opts=self.opts.copy(), src_t='file')
+            name = os.path.join(pyastra.modules.__path__[0], name)
+        c = pyastra.Pyastra(name, self.opts['caller_select'], self.say,
+                            trg_t=['tree'], opts=self.opts.copy(), src_t='file')
         # FIXME: Correct code for case when convert() returns more
         #        than one root
         # Fix the same code in tree_op2asm

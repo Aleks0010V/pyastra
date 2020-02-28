@@ -74,8 +74,12 @@ import Pyastra.lib.ports.pic14
 import Pyastra.lib.ports.pic14.procs
 
 from Pyastra.lib import Option, MESSAGE, WARNING, ERROR, Pyastra
-from ast import Name, AssName, AssAttr, Getattr, Subscript, Constant, AugAssign, LShift, Invert, stmt, Assign  # ToDo - replace AssName, AssAttr, Getattr
-from ast import If, Mult, Div, Mod, Pow, RShift, Tuple, Call, Return, BitAnd, Expr
+from ast import Name, Subscript, Constant, AugAssign, LShift, Invert, stmt  # ToDo - replace AssName, AssAttr, Getattr
+from ast import If, Mult, Div, Mod, Pow, RShift, Tuple, Call, Return, BitAnd, Expr, Assign
+# from ast import AssName, AssAttr, Getattr,
+
+from ast import Attribute
+# I will try to replace AssName with Name and AssAttr, Getattr with Attribute
 
 BASIC_OPTIONS = (
     Option('Disable namespaces support (pyastra 0.0.4 compatibility mode)', lkey='disable_ns'),
@@ -397,7 +401,7 @@ class BasicTreeConverter:
         any_sscr = 0
         all_sscr = 1
         for n in node.nodes:
-            if not (isinstance(n, AssName) or isinstance(n, AssAttr)):
+            if not (isinstance(n, Name) or isinstance(n, Name)):  # AssName replaced by Name
                 all_names = 0
             if isinstance(n, Subscript):
                 any_sscr = 1
@@ -449,7 +453,7 @@ class BasicTreeConverter:
                 self.ll_goto(lbl_else)
                 for n in node.nodes:
                     if not (isinstance(n.expr, Name) or
-                            isinstance(n.expr, Getattr)):
+                            isinstance(n.expr, Attribute)):  # Getattr
                         self.say('Bit assign may be applied to plain numbers only.', ERROR, self.lineno(node))
                     else:
                         var = self.get_var(n.expr)
@@ -634,7 +638,7 @@ class BasicTreeConverter:
                 return
             else:
                 func_name = node.node.name
-        elif isinstance(node.node, Getattr):
+        elif isinstance(node.node, Attribute):  # Getattr
             func_name = self.name_with_ns(node.node, func=True)
         else:
             self.say('only functions are callable while', ERROR)
@@ -1018,7 +1022,7 @@ class BasicTreeConverter:
 
     def conv_subscript(self, node):
         if not (isinstance(node.expr, Name) or
-                isinstance(node.expr, Getattr)):
+                isinstance(node.expr, Attribute)):  # Getattr
             self.say('Bit assign may be applied to bytes only.', ERROR, self.lineno(node))
         elif len(node.subs) != 1:
             self.say('More than one subscripts are not fully supported while.', ERROR, self.lineno(node))
@@ -1162,17 +1166,17 @@ class BasicTreeConverter:
         """
         # global WARNING, ERROR
 
-        if isinstance(obj, Name) or isinstance(obj, AssName):
+        if isinstance(obj, Name) or isinstance(obj, Name):  # AssName replaced by Name
             name = obj.name
             if name not in self.hdikt:
                 if self.namespace:
                     name = self.namespace + '.' + name
                 if not func:
                     name = '_' + name
-        elif isinstance(obj, Getattr) or isinstance(obj, AssAttr):
+        elif isinstance(obj, Attribute) or isinstance(obj, Attribute):  # Getattr, AssAttr
             expr = obj.expr
             name = obj.attrname
-            while isinstance(expr, Getattr):
+            while isinstance(expr, Attribute):  # Getattr
                 name = expr.attrname + '.' + name
                 expr = expr.expr
 

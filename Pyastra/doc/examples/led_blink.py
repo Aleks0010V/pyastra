@@ -29,10 +29,10 @@
 while(1):
     PORTA[0] = 1
     
-    for i in xrange(0,255):
+    for i in range(0, 255):
         pass
     
     PORTA[0] = 0
 
-    for i in xrange(0,255):
+    for i in range(0, 255):
         pass

@@ -89,4 +89,4 @@ def PIC_ADC_switch(adc_channel):
         TRISE[adc_channel-5] = 1
         
     ADCON0 = ADCON0 | adc_channel << 3
-    
+
