@@ -48,7 +48,7 @@ Usage
 
 import getopt
 import os.path
-import Pyastra.lib as pyastra  # ToDo - fix this import
+import Pyastra.lib as pyastra
 import sys
 
 
@@ -81,7 +81,7 @@ def say(message, level, line):
         outstr += f'{("", "WARNING", "ERROR")[level]}: '
 
     if line is not None:
-        outstr += 'line %i: ' % line
+        outstr += f'line {line:d}: '
 
     outstr = f'{outstr}{message}'
     if level < pyastra.ERROR:

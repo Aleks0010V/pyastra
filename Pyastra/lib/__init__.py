@@ -388,7 +388,7 @@ class Branch:
             if mod.converts_from == src_t:
                 if opts['debug']:
                     print(f'{mod_n} {{')
-                conv = mod.Convertor(src, opts)
+                conv = mod.Converter(src, opts)
                 if opts['debug']:
                     print('  meta:', conv.meta)
                 if conv.modified:

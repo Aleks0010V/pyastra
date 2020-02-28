@@ -79,5 +79,4 @@ Currently the following C{src} and C{data} types are known:
 @contact: U{http://pyastra.sourceforge.net}
 """
 
-__all__=['py2tree', 'tree2ol', 'tree2ol16', 'ol2asm',
-         'asm2bin', 'file2py']
+__all__ = ['py2tree', 'tree2ol', 'tree2ol16', 'ol2asm', 'asm2bin', 'file2py']

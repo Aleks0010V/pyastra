@@ -55,7 +55,7 @@ def get_procs(port):
     """@return: A list of supported processors."""
     return []
 
-class Convertor:
+class Converter:
     """
     Main convertor class
     @see: L{converters}

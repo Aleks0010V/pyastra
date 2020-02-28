@@ -31,10 +31,10 @@ U{Pyastra project <http://pyastra.sourceforge.net>}.
 @contact: U{http://pyastra.sourceforge.net}
 """
 
-from ast import Expr, Call, Name  # ToDo - replace compiler
+from ast import Expr, Call, Name
 import Pyastra.lib.ports.pic14 as pic14
 
-from Pyastra.lib import Option, MESSAGE, WARNING, ERROR
+from Pyastra.lib import Option, WARNING
 from Pyastra.lib.basic_tree2ol import BASIC_OPTIONS, BasicTreeConverter, AsmObject, Label, Variable
 from Pyastra.lib import basic_tree2ol
 
@@ -416,7 +416,7 @@ class Pic14Label(Label):
 
         if self.used:
             self.set_uid()
-            self.body = '%s\n' % self.get_label()
+            self.body = f'{self.get_label()}\n'
             bank_after = None
         else:
             self.body = ''

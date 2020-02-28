@@ -33,10 +33,9 @@ U{Pyastra project <http://pyastra.sourceforge.net>}.
 
 from ast import Name, Call, Expr
 
-import types, sys, os.path
 import Pyastra.lib as pyastra
 
-from Pyastra.lib import Option, MESSAGE, WARNING, ERROR
+from Pyastra.lib import Option, WARNING
 from Pyastra.lib.basic_tree2ol import BASIC_OPTIONS, BasicTreeConverter, AsmObject, Label, Variable
 from Pyastra.lib import basic_tree2ol
 
@@ -68,9 +67,9 @@ def get_options():
            ) + BASIC_OPTIONS
 
 
-class Convertor(BasicTreeConverter):
+class Converter(BasicTreeConverter):
     """
-    Main convertor class
+    Main converter class
     @see: L{converters}
     """
     bank_cmds = ('addwf', 'addwfc', 'andwf', 'bcf', 'bsf', 'btfsc', 'btfss',

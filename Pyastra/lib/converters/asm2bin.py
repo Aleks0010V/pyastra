@@ -36,7 +36,7 @@ The result of assembly is saved in C{data} variable.
 
 import os
 import os.path
-import Pyastra as pyastra
+import Pyastra.lib as pyastra
 
 converts_from = 'asm'
 converts_to = 'bin'
@@ -74,8 +74,9 @@ class Converter:
         else:
             try:
                 asm_fn = self.tmp_asm()
-            except:
-                say("Can't find appropriate temporary file name!", level=pyastra.lib.ERROR)
+            except Exception as e:
+                print(f'Exception {e} in {__file__}')
+                say("Can't find appropriate temporary file name!", level=pyastra.ERROR)
                 return
         asm_file = open(asm_fn + '.asm', 'w')
         asm_file.write(src)
@@ -103,7 +104,7 @@ class Converter:
         if asm_path:
             say(f'Assembling {asm_fn}.asm with {asm}...')
             if os.system(f'"{asm_path}" {asm_fn}.asm {asm_args}'):
-                say('Assembling failed.', level=pyastra.lib.ERROR)
+                say('Assembling failed.', level=pyastra.ERROR)
                 return
             hex_file = open(asm_fn + '.hex')
             self.data = hex_file.read()
@@ -114,7 +115,7 @@ class Converter:
             for a in self.ASSEMBLERS:
                 msg += f'    {a[0]}\n'
 
-            say(msg, level=pyastra.lib.ERROR)
+            say(msg, level=pyastra.ERROR)
 
         try:
             os.remove(asm_fn + '.asm')
@@ -128,6 +129,6 @@ class Converter:
         @rtype: C{str}
         """
         for i in range(100000):
-            if not (os.path.exists('tmp%05i.asm' % i) or os.path.exists('tmp%05i.hex' % i)):
-                return 'tmp%05i' % i
+            if not (os.path.exists(f'tmp{i:05d}.asm') or os.path.exists(f'tmp{i:05d}.hex')):
+                return f'tmp{i:05d}'
         raise Exception("Can't find appropriate temporary file name!")
