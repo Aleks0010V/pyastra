@@ -38,8 +38,11 @@ Also py2tree does the following operations:
 @todo: Correct code for case when convert() returns more than one root.
 """
 
-import os.path, compiler, pyastra, pyastra.ports.pic14, pyastra.ports.pic14.modules, pyastra.modules
-from compiler.ast import *
+import os.path
+import Pyastra.lib as pyastra
+
+from Pyastra.lib import ERROR
+from ast import Assign, Module, stmt
 
 converts_from='py'
 converts_to='tree'
@@ -117,8 +120,8 @@ class Convertor:
             if hasattr(node, 'src'):
                 m.src = node.src
             return m
-        elif isinstance(node, Stmt):
-            return Stmt(self.scan(node.nodes, namespace))
+        elif isinstance(node, stmt):
+            return stmt(self.scan(node.nodes, namespace))
         else:
             return node
 

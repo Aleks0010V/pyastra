@@ -18,7 +18,7 @@ Namespaces feature implementing plan
 ====================================
   - (DONE) Output not to assembler directly, but into an object list.
   - Move all memory control to C{MemoryManager} class.
-  - Add support of C{CallFunc}, C{Function} and C{Return} nodes.
+  - Add support of C{Call}, C{Function} and C{Return} nodes.
   - Add support of C{Global} node.
   - Add support of C{From} node.
   - Fix C{asm()} pseudofunction.
@@ -74,8 +74,8 @@ import Pyastra.lib.ports.pic14
 import Pyastra.lib.ports.pic14.procs
 
 from Pyastra.lib import Option, MESSAGE, WARNING, ERROR, Pyastra
-from compiler.ast import Name, AssName, AssAttr, Getattr, Subscript, Const, AugAssign, LeftShift, Invert, Stmt, Assign
-from compiler.ast import If, Mul, Div, Mod, Power, RightShift, Tuple, CallFunc, Return, Discard, Bitand
+from ast import Name, AssName, AssAttr, Getattr, Subscript, Constant, AugAssign, LShift, Invert, stmt, Assign  # ToDo - replace AssName, AssAttr, Getattr
+from ast import If, Mult, Div, Mod, Pow, RShift, Tuple, Call, Return, BitAnd, Expr
 
 BASIC_OPTIONS = (
     Option('Disable namespaces support (pyastra 0.0.4 compatibility mode)', lkey='disable_ns'),
@@ -405,7 +405,7 @@ class BasicTreeConverter:
                 all_sscr = 0
 
         if (all_names
-                and isinstance(node.expr, Const)
+                and isinstance(node.expr, Constant)
                 and node.expr.value == 0):
             for n in node.nodes:
                 self.ll_clrf(self.get_var(n))
@@ -413,7 +413,7 @@ class BasicTreeConverter:
             if not all_sscr:
                 self.say('mixing bit and byte assign is not supported.',
                          ERROR, self.lineno(node))
-            elif isinstance(node.expr, Const):
+            elif isinstance(node.expr, Constant):
                 if node.expr.value:
                     oper = self.ll_bsf
                 else:
@@ -428,17 +428,17 @@ class BasicTreeConverter:
                         break
 
                     for i in n.subs:
-                        if isinstance(i, Const):
+                        if isinstance(i, Constant):
                             oper(var, str(i.value))
                         elif isinstance(i, Name) and i.name in self.hdikt:
                             # FIXME: Check that i.name references to a bit
                             oper(var, str(i.name))
                         elif oper == self.ll_bsf:
-                            self._convert(AugAssign(n.expr, '|=', LeftShift((Const(1), i))))
+                            self._convert(AugAssign(n.expr, '|=', LShift((Constant(1), i))))
                         else:
-                            self._convert(AugAssign(n.expr, '&=', Invert(LeftShift((Const(1), i)))))
+                            self._convert(AugAssign(n.expr, '&=', Invert(LShift((Constant(1), i)))))
 
-            elif isinstance(node.expr, Subscript) and len(node.expr.subs) == 1 and isinstance(node.expr.subs[0], Const):
+            elif isinstance(node.expr, Subscript) and len(node.expr.subs) == 1 and isinstance(node.expr.subs[0], Constant):
                 # FIXME: expressions with a dot (like module.var) may not
                 #        work here!
                 lbl_else = Label('sub_else')
@@ -454,7 +454,7 @@ class BasicTreeConverter:
                     else:
                         var = self.get_var(n.expr)
                         for i in n.subs:
-                            if isinstance(i, Const):
+                            if isinstance(i, Constant):
                                 self.ll_bcf(var, str(i.value))
                             elif isinstance(i, Name) and i.name in self.hdikt:
                                 self.ll_bcf(var, str(i.name))
@@ -470,7 +470,7 @@ class BasicTreeConverter:
                     else:
                         var = self.get_var(n.expr)
                         for i in n.subs:
-                            if isinstance(i, Const):
+                            if isinstance(i, Constant):
                                 self.ll_bsf(var, str(i.value))
                             elif isinstance(i, Name) and i.name in self.hdikt:
                                 self.ll_bsf(var, str(i.name))
@@ -479,8 +479,8 @@ class BasicTreeConverter:
                 self.app(lbl_exit)
             else:
                 self._convert(If([(node.expr,
-                                   Stmt([Assign(node.nodes, Const(1))]))],
-                                 Stmt([Assign(node.nodes, Const(0))])))
+                                   stmt([Assign(node.nodes, Constant(1))]))],
+                                 stmt([Assign(node.nodes, Constant(0))])))
         else:
             self._convert(node.expr)
 
@@ -504,7 +504,7 @@ class BasicTreeConverter:
             self._convert(node.expr)
             self.ll_subwf(var, 'f')
         elif node.op == '*=':
-            self._convert(Mul((node.node, node.expr)))
+            self._convert(Mult((node.node, node.expr)))
             self.ll_movwf(var, 'f')
         elif node.op == '/=':
             self._convert(Div((node.node, node.expr)))
@@ -513,13 +513,13 @@ class BasicTreeConverter:
             self._convert(Mod((node.node, node.expr)))
             self.ll_movwf(var, 'f')
         elif node.op == '**=':
-            self._convert(Power((node.node, node.expr)))
+            self._convert(Pow((node.node, node.expr)))
             self.ll_movwf(var, 'f')
         elif node.op == '>>=':
-            self._convert(RightShift((node.node, node.expr)))
+            self._convert(RShift((node.node, node.expr)))
             self.ll_movwf(var, 'f')
         elif node.op == '<<=':
-            self._convert(LeftShift((node.node, node.expr)))
+            self._convert(LShift((node.node, node.expr)))
             self.ll_movwf(var, 'f')
         elif node.op == '&=':
             self._convert(node.expr)
@@ -574,12 +574,12 @@ class BasicTreeConverter:
             # TODO: Check whether it requires a namespace fix
             if node.node.name == 'asm':
                 err_mesg = 'asm function has the following syntax: asm(code [, instr_count [, (local_var1, local_var2, ...)]])'
-                if len(node.args) == 1 and isinstance(node.args[0], Const):
+                if len(node.args) == 1 and isinstance(node.args[0], Constant):
                     self.app('\n; -- Parsed verbatim inclusion:\n', verbatim=True)
                     self.parse_asm(node.args[0].value)
                     self.app('\n; -- End of parsed verbatim inclusion\n', verbatim=True)
-                elif not (2 <= len(node.args) <= 3 and isinstance(node.args[0], Const) and isinstance(node.args[1],
-                                                                                                      Const)):
+                elif not (2 <= len(node.args) <= 3 and isinstance(node.args[0], Constant) and isinstance(node.args[1],
+                                                                                                      Constant)):
                     self.say(err_mesg, ERROR)
                     return
                 else:
@@ -592,7 +592,7 @@ class BasicTreeConverter:
                             return
                         else:
                             for i in node.args[2].nodes:
-                                if not isinstance(i, Const):
+                                if not isinstance(i, Constant):
                                     self.say('Local variables names must be constant strings.', ERROR)
                                     return
                                 self.get_var(i.value)
@@ -603,7 +603,7 @@ class BasicTreeConverter:
                 return
             elif node.node.name == 'fbin':
                 if (len(node.args) != 1
-                        or not isinstance(node.args[0], Const)
+                        or not isinstance(node.args[0], Constant)
                         or not isinstance(node.args[0].value, str)):
                     self.say('fbin(\'0101 0101\') function takes only one argument: binary number', ERROR)
                     return
@@ -618,13 +618,13 @@ class BasicTreeConverter:
                             self.say('fbin(\'0101 0101\') function takes only one argument: binary number', ERROR)
                             return
 
-                self._convert(Const(val))
+                self._convert(Constant(val))
                 return
             elif node.node.name == 'pragma_varaddr':
                 if (len(node.args) != 2
-                        or not isinstance(node.args[0], Const)
+                        or not isinstance(node.args[0], Constant)
                         or not isinstance(node.args[0].value, str)
-                        or not isinstance(node.args[1], Const)
+                        or not isinstance(node.args[1], Constant)
                         or not isinstance(node.args[1].value, int)):
                     self.say(
                         'pragrma_varaddr(name, addr) function takes exactly two arguments: variable name and its address.',
@@ -738,13 +738,13 @@ class BasicTreeConverter:
         self.ll_goto(self.lbl_stack[-1][0])
 
     def conv_discard(self, node):
-        if isinstance(node.expr, Const) and node.expr.value is None:
+        if isinstance(node.expr, Constant) and node.expr.value is None:
             return
         else:
             self._convert(node.expr)
 
     def conv_for(self, node):
-        if not (isinstance(node.list, CallFunc) and
+        if not (isinstance(node.list, Call) and
                 isinstance(node.list.node, Name) and
                 node.list.node.name == 'range' and
                 len(node.list.args) == 2 and
@@ -767,7 +767,7 @@ class BasicTreeConverter:
 
         self.lbl_stack.append((lbl_cont, lbl_end))
 
-        if (isinstance(node.list.args[1], Const)
+        if (isinstance(node.list.args[1], Constant)
                 and node.list.args[1].value == 256):
             # skip whole loop if cntr==255
             self.ll_movf(cntr, 'w')
@@ -907,7 +907,7 @@ class BasicTreeConverter:
         self.ll_comf(buf, 'w')
 
     def conv_leftshift(self, node):
-        if (isinstance(node.right, Const)
+        if (isinstance(node.right, Constant)
                 and self.formatConst(node.right.value) != -1
                 and (node.right.value < 8 or self.op_speed)):
             buf = self.push()
@@ -917,7 +917,7 @@ class BasicTreeConverter:
                 self.ll_rlf(buf, 'f')
             self.ll_rlf(buf, 'w')
         else:
-            self._convert(Discard(CallFunc(Name('lshift'), [node.left, node.right], None, None)))
+            self._convert(Expr(Call(Name('lshift'), [node.left, node.right], None, None)))
 
     def conv_module(self, node):
         tmp_src = self.src
@@ -948,9 +948,9 @@ class BasicTreeConverter:
 
     def conv_name(self, node):
         if node.name == 'True':
-            self._convert(Const(1))
+            self._convert(Constant(1))
         elif node.name == 'False':
-            self._convert(Const(0))
+            self._convert(Constant(0))
         else:
             self.ll_movf(self.get_var(node), 'w')
 
@@ -981,7 +981,7 @@ class BasicTreeConverter:
         return
 
     def conv_return(self, node):
-        if not (isinstance(node.value, Const) and node.value.value is None):
+        if not (isinstance(node.value, Constant) and node.value.value is None):
             if self.in_inter:
                 self.say('Interrupt handler can not return any values! Ignoring...', WARNING)
             else:
@@ -994,7 +994,7 @@ class BasicTreeConverter:
             self.ll_return()
 
     def conv_rightshift(self, node):
-        if isinstance(node.right, Const) and self.formatConst(node.right.value) != -1 and (
+        if isinstance(node.right, Constant) and self.formatConst(node.right.value) != -1 and (
                 node.right.value < 8 or self.op_speed):
             buf = self.push()
             self._convert(node.left)
@@ -1004,7 +1004,7 @@ class BasicTreeConverter:
 
             self.ll_rrf(buf, 'f')
         else:
-            self._convert(Discard(CallFunc(Name('rshift'), [node.left, node.right], None, None)))
+            self._convert(Expr(Call(Name('rshift'), [node.left, node.right], None, None)))
 
     def conv_stmt(self, node):
         self._convert(node.nodes)
@@ -1026,7 +1026,7 @@ class BasicTreeConverter:
             self.say(f'Unsupported flag: {node.flags}.', ERROR, self.lineno(node))
         else:
             name = self.get_var(node.expr)
-            if isinstance(node.subs[0], Const):
+            if isinstance(node.subs[0], Constant):
                 self.ll_movlw('.0')
                 self.ll_btfsc(name, str(node.subs[0].value))
                 self.ll_movlw('.1')
@@ -1036,7 +1036,7 @@ class BasicTreeConverter:
                     self.ll_btfsc(name, node.subs[0].name)
                     self.ll_movlw('.1')
                 else:
-                    self._convert(Bitand([node.expr, LeftShift((Const(1), node.subs[0]))]))
+                    self._convert(BitAnd([node.expr, LShift((Constant(1), node.subs[0]))]))
             else:
                 self.say('Only constant indices are supported while.', ERROR, self.lineno(node))
             self.data[-1].fix_test = True

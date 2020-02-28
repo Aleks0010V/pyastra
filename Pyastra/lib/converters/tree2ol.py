@@ -31,11 +31,8 @@ U{Pyastra project <http://pyastra.sourceforge.net>}.
 @contact: U{http://pyastra.sourceforge.net}
 """
 
-from compiler.ast import Discard, CallFunc, Name  # ToDo - replace compiler
-import sys
-import os.path
+from ast import Expr, Call, Name  # ToDo - replace compiler
 import Pyastra.lib.ports.pic14 as pic14
-import Pyastra
 
 from Pyastra.lib import Option, MESSAGE, WARNING, ERROR
 from Pyastra.lib.basic_tree2ol import BASIC_OPTIONS, BasicTreeConverter, AsmObject, Label, Variable
@@ -90,7 +87,7 @@ class Converter(BasicTreeConverter):
         BasicTreeConverter.__init__(self, src, opts)
 
     def conv_div(self, node):
-        self._convert(Discard(CallFunc(Name('div'), [node.left, node.right], None, None)))
+        self._convert(Expr(Call(Name('div'), [node.left, node.right], None, None)))
 
     def conv_inter_start(self):
         if len(self.pages) > 1:
@@ -119,13 +116,13 @@ class Converter(BasicTreeConverter):
         self.data += [oa]
 
     def conv_mod(self, node):
-        self._convert(Discard(CallFunc(Name('mod'), [node.left, node.right], None, None)))
+        self._convert(Expr(Call(Name('mod'), [node.left, node.right], None, None)))
 
     def conv_mul(self, node):
-        self._convert(Discard(CallFunc(Name('mul'), [node.left, node.right], None, None)))
+        self._convert(Expr(Call(Name('mul'), [node.left, node.right], None, None)))
 
     def conv_power(self, node):
-        self._convert(Discard(CallFunc(Name('pow'), [node.left, node.right], None, None)))
+        self._convert(Expr(Call(Name('pow'), [node.left, node.right], None, None)))
 
     def get_header(self):
         header = [Pic14AsmObject("""

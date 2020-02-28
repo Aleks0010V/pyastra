@@ -48,7 +48,7 @@ Usage
 
 import getopt
 import os.path
-import Pyastra as pyastra  # ToDo - fix this import
+import Pyastra.lib as pyastra  # ToDo - fix this import
 import sys
 
 
@@ -77,14 +77,14 @@ def say(message, level, line):
     @see pyastra.Pyastra
     """
     outstr = ''
-    if level != pyastra.lib.MESSAGE:
-        outstr += '%s: ' % ('', 'WARNING', 'ERROR')[level]
+    if level != pyastra.MESSAGE:
+        outstr += f'{("", "WARNING", "ERROR")[level]}: '
 
     if line is not None:
         outstr += 'line %i: ' % line
 
-    outstr = '%s%s' % (outstr, message)
-    if level < pyastra.lib.ERROR:
+    outstr = f'{outstr}{message}'
+    if level < pyastra.ERROR:
         print(outstr)
     else:
         sys.stderr.write(outstr + '\n')
@@ -92,7 +92,7 @@ def say(message, level, line):
 
 def usage():
     """Displays the usage message"""
-    print(f"""{pyastra.lib.version} usage:
+    print(f"""{pyastra.version} usage:
 pyastra [options] infile
 
 General options:
@@ -109,17 +109,17 @@ General options:
     global fopts
     for fname in fopts.keys():
         optlist = fopts[fname]
-        fopts_s += (' * %s:\n' % fname)
+        fopts_s += f' * {fname}:\n'
         for opt in optlist:
             skey = ''
             lkey = ''
             if opt.skey:
-                skey = '-%s' % opt.skey
+                skey = f'-{opt.skey}'
 
             if opt.lkey:
-                lkey = '--%s' % opt.lkey
+                lkey = f'--{opt.lkey}'
 
-            fopts_s += '  %-3s %-12s %s\n' % (skey, lkey, opt.descr)
+            fopts_s += f'  {skey:<3} {lkey:<12} {opt.descr}\n'
 
     if fopts_s:
         print('Converter-specific options:')

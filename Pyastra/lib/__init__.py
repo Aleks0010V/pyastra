@@ -78,7 +78,7 @@ Architecture
 @todo: Test the library.
 """
 
-__all__ = ['ports', 'modules', 'convertors', 'basic_tree2ol']
+__all__ = ['ports', 'modules', 'converters', 'basic_tree2ol']
 
 from Pyastra.lib import converters
 
@@ -97,7 +97,7 @@ def get_ports():
     """
     ports = []
     for mod_n in converters.__all__:
-        mod = __import__('pyastra.converters.%s' % mod_n, globals(), locals(), '*')  # ToDo - fix this import
+        mod = __import__(f'Pyastra.lib.converters.{mod_n}', globals(), locals(), '*')
         for port in mod.get_ports():
             if port not in ports:
                 ports += [port]
@@ -116,7 +116,7 @@ def get_procs(port):
     """
     procs = []
     for mod_n in converters.__all__:
-        mod = __import__('pyastra.converters.%s' % mod_n, globals(), locals(), '*')  # ToDo - fix this import
+        mod = __import__(f'Pyastra.lib.converters.{mod_n}', globals(), locals(), '*')
         for proc in mod.get_procs(port):
             if proc not in procs:
                 procs += [proc]
@@ -133,7 +133,7 @@ def get_options():
     """
     opts = {}
     for mod_n in converters.__all__:
-        mod = __import__('pyastra.converters.%s' % mod_n, globals(), locals(), '*')
+        mod = __import__(f'Pyastra.lib.converters.{mod_n}', globals(), locals(), '*')
         if hasattr(mod, 'get_options'):
             opts[mod_n] = mod.get_options()
     return opts
@@ -190,7 +190,7 @@ def merge_metas(meta1, meta2):
     @type  meta2: C{dict}
     """
     for key in meta2.keys():
-        if not key in meta1:
+        if key not in meta1:
             meta1[key] = meta2[key]
 
 
@@ -384,7 +384,7 @@ class Branch:
         self.subnodes = {}
         self.select = select
         for mod_n in converters.__all__:
-            mod = __import__(f'pyastra.converters.{mod_n}', globals(), locals(), '*')  # ToDo - fix this import
+            mod = __import__(f'Pyastra.lib.converters.{mod_n}', globals(), locals(), '*')
             if mod.converts_from == src_t:
                 if opts['debug']:
                     print(f'{mod_n} {{')
@@ -458,7 +458,7 @@ class Branch:
         @param meta: Meta of the subnode.
         @type  meta: C{str}
         """
-        global merge_metas
+        # global merge_metas
 
         if isinstance(subnode, dict):
             for key in subnode.keys():
@@ -482,7 +482,7 @@ class Branch:
         @return: Convertors of successfully achieved targets.
         @rtype:  C{dict}
         """
-        global merge_metas  # ToDo - find this variable
+        # global merge_metas
         assert (self.status != Branch.BROKEN)
 
         if self.status == Branch.ASK_USER:
