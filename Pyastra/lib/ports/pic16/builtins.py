@@ -33,6 +33,7 @@ during compilation. Usually are written in assembler.
 @todo: Bank selection before variable usage
 """
 
+
 def lshift(lshift_left, lshift_right):
     """
     Does the left shift (C{<<}) operation. Puts the result in the C{W}
@@ -42,17 +43,18 @@ def lshift(lshift_left, lshift_right):
     @param lshift_right: Right operand.
     """
     asm("""
-        movf    _lshift_left,    w
+    movf    _lshift_left,    w
 	movf	_lshift_right,	f
 	bz	lshift_label_end
 lshift_label_beg
-        bcf     STATUS, C
+    bcf     STATUS, C
 	rlcf	_lshift_left,	f
 	decfsz	_lshift_right,	f
 	bra	lshift_label_beg
 	movf	_lshift_left,	w
 lshift_label_end
 """)
+
 
 def rshift(rshift_left, rshift_right):
     """
@@ -63,17 +65,18 @@ def rshift(rshift_left, rshift_right):
     @param rshift_right: Right operand.
     """
     asm("""
-        movf   _rshift_left,    w
+    movf   _rshift_left,    w
 	movf	_rshift_right,	f
 	bz	rshift_label_end
 rshift_label_beg
-        bcf     STATUS, C
+    bcf     STATUS, C
 	rrcf	_rshift_left,	f
 	decfsz	_rshift_right,	f
 	bra	rshift_label_beg
 	movf	_rshift_left,	w
 rshift_label_end
 """)
+
 
 def div(div_left, div_right):
     """
@@ -104,6 +107,7 @@ div_cont
 	movf	div_res,	w
 """)
 
+
 def mod(mod_left, mod_right):
     """
     Diviedes opearands and puts the reminder in the C{W} register.
@@ -131,6 +135,7 @@ mod_cont
 	movf	mod_buf,	w
 """)
 
+
 def power(pow_left, pow_right):
     """
     Raises the base to the exponent and puts the result to the C{W} register.
@@ -139,7 +144,7 @@ def power(pow_left, pow_right):
     @param pow_right: Exponent.
     """
     asm("""
-    	movf	_pow_right,	f
+    movf	_pow_right,	f
 	bnc	pow_cont
 	movlw	.1
 	bra	pow_end

@@ -30,29 +30,32 @@ Takes a file name as C{src} and returns contents of the file as string.
           Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
           MA 02111-1307, USA.
 @contact: U{http://pyastra.sourceforge.net}
-@see: L{convertors}
+@see: L{converters}
 """
 
-converts_from='file'
-converts_to='py'
+converts_from = 'file'
+converts_to = 'py'
+
 
 def get_ports():
     """@return: A list of supported ports."""
     return []
 
+
 def get_procs(port):
     """@return: A list of supported processors."""
     return []
 
-class Convertor:
+
+class Converter:
     """
     Main convertor class
-    @see: L{convertors}
+    @see: L{converters}
     """
-    modified=True
-    meta={}
-    
+    modified = True
+    meta = {}
+
     def __init__(self, src, opts):
-        f=file(src)
+        f = open(src)
         self.data = f.read()
         f.close()

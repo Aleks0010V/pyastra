@@ -1,23 +1,23 @@
 ############################################################################
 # $Id$
 #
-# Description: Pyastra convertors. Pyastra project.
+# Description: Pyastra converters. Pyastra project.
 # Author: Alex Ziranov <estyler _at_ users _dot_ sourceforge _dot_ net>
 #    
 # Copyright (c) 2005 Alex Ziranov.  All rights reserved.
 #
 ############################################################################
 """
-Pyastra convertors. U{Pyastra project <http://pyastra.sourceforge.net>}.
+Pyastra converters. U{Pyastra project <http://pyastra.sourceforge.net>}.
 
-This package contains all convertors of Pyastra. You should list a convertor in the C{__all__} dictionary to enable it. Pyastra is shipped with all official modules enabled.
+This package contains all converters of Pyastra. You should list a convertor in the C{__all__} dictionary to enable it. Pyastra is shipped with all official modules enabled.
 
 Every convertor must contain:
   - C{converts_from} and C{converts_to} fields that are plain strings
     that define where the convertor should be plugget to.
   - C{get_ports} and C{get_procs} functions that return lists of
     supported ports and processors accordingly.
-  - C{Convertor} class that:
+  - C{Converter} class that:
     - Is initialized by C{__init__(self, src, opts)} method, where
       C{src} is an object returned by the previous convertor and
       C{opts} is a dictionary of options.
@@ -43,7 +43,7 @@ Thus, the simplest "dummy" convertor will be::
   def get_procs(port):
       return []
 
-  class Convertor:
+  class Converter:
       modified=True
       meta={}
       

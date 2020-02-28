@@ -33,7 +33,7 @@ Also py2tree does the following operations:
           Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
           MA 02111-1307, USA.
 @contact: U{http://pyastra.sourceforge.net}
-@see: L{convertors}
+@see: L{converters}
 @todo: Test C{Import} AST node.
 @todo: Correct code for case when convert() returns more than one root.
 """
@@ -55,7 +55,7 @@ def get_procs(port):
 class Convertor:
     """
     Main convertor class
-    @see: L{convertors}
+    @see: L{converters}
     """
     modified = True
     interrupts_on=False

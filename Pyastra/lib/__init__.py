@@ -49,9 +49,9 @@ Architecture
       
   Back-ends
   ---------
-    All Pyastra back-ends are L{convertors}. To plug in new convertor
-    into the chain you just need to add a file to the convertors folder.
-    See L{convertors} package documentation for details.
+    All Pyastra back-ends are L{converters}. To plug in new convertor
+    into the chain you just need to add a file to the converters folder.
+    See L{converters} package documentation for details.
         
 @author: U{Alex Ziranov <mailto:estyler_at_users_dot_sourceforge_dot_net>}
 @copyright: (C) 2004-2006 Alex Ziranov.  All rights reserved.
@@ -80,24 +80,24 @@ Architecture
 
 __all__ = ['ports', 'modules', 'convertors', 'basic_tree2ol']
 
-from pyastra import convertors
+from Pyastra.lib import converters
 
+revision = '$Revision$'[11:-2]
+version = 'pyastra 0.0.5-prerelease (rev %s)' % revision
+MESSAGE = 0
+WARNING = 1
+ERROR = 2
 
-revision='$Revision$'[11:-2]
-version='pyastra 0.0.5-prerelease (rev %s)' % revision
-MESSAGE=0
-WARNING=1
-ERROR=2
 
 def get_ports():
     """
-    Scans convertors for supported ports.
+    Scans converters for supported ports.
     @return: Ports supported by the current Pyastra configuration.
     @rtype:  C{list}
     """
-    ports=[]
-    for mod_n in convertors.__all__:
-        mod=__import__('pyastra.convertors.%s' % mod_n, globals(), locals(), '*')
+    ports = []
+    for mod_n in converters.__all__:
+        mod = __import__('pyastra.converters.%s' % mod_n, globals(), locals(), '*')  # ToDo - fix this import
         for port in mod.get_ports():
             if port not in ports:
                 ports += [port]
@@ -105,17 +105,18 @@ def get_ports():
     ports.sort()
     return ports
 
+
 def get_procs(port):
     """
-    Scans convertors for supported processors for the given port.
+    Scans converters for supported processors for the given port.
     @param port: Port for which the processors list must be returned.
     @type port:  C{str}
     @return: Processors supported by the current Pyastra configuration.
     @rtype:  C{list}
     """
-    procs=[]
-    for mod_n in convertors.__all__:
-        mod=__import__('pyastra.convertors.%s' % mod_n, globals(), locals(), '*')
+    procs = []
+    for mod_n in converters.__all__:
+        mod = __import__('pyastra.converters.%s' % mod_n, globals(), locals(), '*')  # ToDo - fix this import
         for proc in mod.get_procs(port):
             if proc not in procs:
                 procs += [proc]
@@ -123,18 +124,20 @@ def get_procs(port):
     procs.sort()
     return procs
 
+
 def get_options():
     """
-    Scans convertors for port-specific options.
+    Scans converters for port-specific options.
     @return: Port-specific options.
     @rtype:  C{dict} of L{Option}s
     """
-    opts={}
-    for mod_n in convertors.__all__:
-        mod=__import__('pyastra.convertors.%s' % mod_n, globals(), locals(), '*')
+    opts = {}
+    for mod_n in converters.__all__:
+        mod = __import__('pyastra.converters.%s' % mod_n, globals(), locals(), '*')
         if hasattr(mod, 'get_options'):
-            opts[mod_n]=mod.get_options()
+            opts[mod_n] = mod.get_options()
     return opts
+
 
 def crt_options():
     """
@@ -148,15 +151,15 @@ def crt_options():
     @return: Dictionary of options filled with default values.
     @rtype:  C{dict}
     """
-    opts={}
+    opts = {}
     for fopt in get_options().values():
         for opt in fopt:
             if opt.arg:
-                opts[opt.lkey]=''
+                opts[opt.lkey] = ''
             else:
-                opts[opt.lkey]=False
+                opts[opt.lkey] = False
     return opts
-    
+
 
 def get_merged_metas(nodes):
     """
@@ -170,10 +173,11 @@ def get_merged_metas(nodes):
     @return: Merged meta dictionary.
     @rtype:  C{dict}
     """
-    meta={}
+    meta = {}
     for node in nodes:
         merge_metas(meta, node.meta)
     return meta
+
 
 def merge_metas(meta1, meta2):
     """
@@ -186,8 +190,9 @@ def merge_metas(meta1, meta2):
     @type  meta2: C{dict}
     """
     for key in meta2.keys():
-        if not meta1.has_key(key):
-            meta1[key]=meta2[key]
+        if not key in meta1:
+            meta1[key] = meta2[key]
+
 
 class Pyastra:
     """
@@ -220,9 +225,9 @@ class Pyastra:
     @ivar opts: Options dictionary.
     @type opts: C{dict}
     """
-    
+
     def __init__(self, src, select=None, say=None, trg_t=['asm_op'], src_t='py', opts=None):
-            """
+        """
             @param say: Function that brings some information to the user.
             @type say:  C{function}
             @param src: Source data (what to convert from).
@@ -236,23 +241,23 @@ class Pyastra:
             @param opts: Options dictionary.
             @type opts:  C{dict}
             """
-            global crt_options
-            
-            self.errors=0
-            self.warnings=0
-            self.messages=0
-            
-            if not opts:
-                opts = crt_options()
-            opts['caller_select']=select
-            opts['pyastra']=self
-            self.caller_say=say
-            opts.setdefault('debug', False)
-            self.src=src
-            self.trg_t=trg_t
-            self.src_t=src_t
-            self.opts=opts
-    
+        global crt_options
+
+        self.errors = 0
+        self.warnings = 0
+        self.messages = 0
+
+        if not opts:
+            opts = crt_options()
+        opts['caller_select'] = select
+        opts['pyastra'] = self
+        self.caller_say = say
+        opts.setdefault('debug', False)
+        self.src = src
+        self.trg_t = trg_t
+        self.src_t = src_t
+        self.opts = opts
+
     def convert(self):
         """
         Starts the conversion and returns only after the conversion
@@ -264,23 +269,23 @@ class Pyastra:
         @todo: Replace exception strings with objects and write the @raise
           field.
         """
-        b=Branch(self.src, self.opts['caller_select'], self.trg_t,
-                self.src_t, self.opts)
-            
+        b = Branch(self.src, self.opts['caller_select'], self.trg_t,
+                   self.src_t, self.opts)
+
         if b.status == Branch.BROKEN:
             raise "Can't convert %s to %s." % (self.src_t, self.trg_t)
         else:
-            result=b.get_trg()
+            result = b.get_trg()
             if b.status == Branch.PARTIALLY_RESOLVED:
-                print "The following targets weren't achieved:"
+                print("The following targets weren't achieved:")
                 for trg in self.trg_t:
                     if trg not in result.keys():
-                        print "    %s" % trg
-            ret=[]
+                        print(f"    {trg}")
+            ret = []
             for val in result.values():
-                ret+=val
+                ret += val
             return ret
-        
+
     def say(self, message, level=MESSAGE, line=None):
         """
         Counts messages of every level and calls the L{caller_say} method
@@ -297,15 +302,16 @@ class Pyastra:
         @todo: Add module name to all messages.
         """
         global MESSAGE, WARNING, ERROR
-        if level==ERROR:
+        if level == ERROR:
             self.errors += 1
-        elif level==WARNING:
+        elif level == WARNING:
             self.warnings += 1
         else:
             self.messages += 1
 
         if self.caller_say:
             self.caller_say(message, level, line)
+
 
 class Option:
     """Represents an option that may be pushed to a convertor.
@@ -315,7 +321,7 @@ class Option:
        @ivar arg:   boolean that describes whether the option needs
                     an argument or it doesn't (defaults to False)
     """
-    
+
     def __init__(self, descr, lkey, skey=None, arg=False):
         """
          @param descr: description of the option
@@ -324,18 +330,17 @@ class Option:
          @param arg:   boolean that describes whether the option needs
                        an argument or it doesn't (defaults to False)
         """
-        self.descr=descr
-        self.skey=skey
-        self.lkey=lkey
-        self.arg=arg
+        self.descr = descr
+        self.skey = skey
+        self.lkey = lkey
+        self.arg = arg
 
-    
-    
+
 class Branch:
     """
-    Represents a branch of convertors tree. At every stage pyastra scans
-    all convertors if any of them has C{from_to} of the curren source.
-    If multiple convertors support this type, branch will fork.
+    Represents a branch of converters tree. At every stage pyastra scans
+    all converters if any of them has C{from_to} of the curren source.
+    If multiple converters support this type, branch will fork.
     
     @cvar BROKEN: Constant that marks a branch as broken.
     @cvar ASK_USER: Constant that marks a branch as a fork that can't be
@@ -358,11 +363,11 @@ class Branch:
     
     @todo: Add support of optimizators.
     """
-    BROKEN=0
-    ASK_USER=1
-    PARTIALLY_RESOLVED=2
-    RESOLVED=3
-    
+    BROKEN = 0
+    ASK_USER = 1
+    PARTIALLY_RESOLVED = 2
+    RESOLVED = 3
+
     def __init__(self, src, select, trg_t, src_t, opts):
         """
         @param src: Source data.
@@ -375,45 +380,45 @@ class Branch:
         @param opts: Options dictionary.
         @type  opts: C{dict}
         """
-        self.status=None
-        self.subnodes={}
-        self.select=select
-        for mod_n in convertors.__all__:
-            mod=__import__('pyastra.convertors.%s' % mod_n, globals(), locals(), '*')
+        self.status = None
+        self.subnodes = {}
+        self.select = select
+        for mod_n in converters.__all__:
+            mod = __import__(f'pyastra.converters.{mod_n}', globals(), locals(), '*')  # ToDo - fix this import
             if mod.converts_from == src_t:
                 if opts['debug']:
-                    print '%s {' % mod_n
-                conv=mod.Convertor(src, opts)
+                    print(f'{mod_n} {{')
+                conv = mod.Convertor(src, opts)
                 if opts['debug']:
-                    print '  meta:', conv.meta
+                    print('  meta:', conv.meta)
                 if conv.modified:
                     if mod.converts_to in trg_t:
                         self.add_subnode(conv, mod.converts_to)
-                            
+
                         if len(trg_t) > 1:
-                            n_trg=filter(lambda x: x != mod.converts_to, trg_t)
+                            n_trg = filter(lambda x: x != mod.converts_to, trg_t)
                             self.fork(conv.data, select, n_trg, mod.converts_to, opts)
                     else:
                         self.fork(conv.data, select, trg_t, mod.converts_to, opts, conv.meta)
                 if opts['debug']:
-                    print '}'
-                        
-        if len(self.subnodes)==0:
-            self.status=Branch.BROKEN
-        elif self.subnodes.has_key('branches'):
-            self.status=Branch.ASK_USER
+                    print('}')
+
+        if len(self.subnodes) == 0:
+            self.status = Branch.BROKEN
+        elif 'branches' in self.subnodes:
+            self.status = Branch.ASK_USER
         else:
-            self.status=Branch.RESOLVED
+            self.status = Branch.RESOLVED
             for trg in trg_t:
-                if self.subnodes.has_key(trg):
+                if trg in self.subnodes:
                     if len(self.subnodes[trg]) > 1:
-                        self.status=Branch.ASK_USER
+                        self.status = Branch.ASK_USER
                         break
                 else:
-                    self.status=Branch.PARTIALLY_RESOLVED
-        
+                    self.status = Branch.PARTIALLY_RESOLVED
+
         if opts['debug']:
-            print ('BROKEN', 'ASK_USER', 'PARTIALLY_RESOLVED', 'RESOLVED')[self.status]
+            print('BROKEN', 'ASK_USER', 'PARTIALLY_RESOLVED', 'RESOLVED', [self.status])
 
     def fork(self, src, select, trg_t, src_t, opts, meta=None):
         """
@@ -432,8 +437,8 @@ class Branch:
         @param meta: Meta of the subnode to be used as the meta of the fork.
         @type  meta: C{str}
         """
-        b=Branch(src, select, trg_t, src_t, opts)
-        
+        b = Branch(src, select, trg_t, src_t, opts)
+
         if b.status == Branch.ASK_USER:
             self.add_subnode(b, 'branches', meta=meta)
         elif b.status >= Branch.PARTIALLY_RESOLVED:
@@ -459,16 +464,16 @@ class Branch:
             for key in subnode.keys():
                 self.add_subnode(subnode[key], key, meta)
         else:
-            t=self.subnodes.setdefault(trg_t, [])
+            t = self.subnodes.setdefault(trg_t, [])
             if isinstance(subnode, list) or isinstance(subnode, tuple):
                 if meta:
                     for node in subnode:
                         merge_metas(node.meta, meta)
-                t+=subnode
+                t += subnode
             else:
                 if meta:
                     merge_metas(subnode.meta, meta)
-                t+=[subnode]
+                t += [subnode]
 
     def get_trg(self):
         """
@@ -477,11 +482,11 @@ class Branch:
         @return: Convertors of successfully achieved targets.
         @rtype:  C{dict}
         """
-        global merge_metas
-        assert(self.status != Branch.BROKEN)
-        
+        global merge_metas  # ToDo - find this variable
+        assert (self.status != Branch.BROKEN)
+
         if self.status == Branch.ASK_USER:
-            if self.subnodes.has_key('branches'):
+            if 'branches' in self.subnodes:
                 for b in self.subnodes['branches']:
                     self.add_subnode(b.get_trg())
 
@@ -489,16 +494,16 @@ class Branch:
 
             for key in self.subnodes:
                 if len(self.subnodes[key]) > 1:
-                    if select:
-                        self.subnodes[key]=self.select(self.subnodes[key])
+                    if self.select:
+                        self.subnodes[key] = self.select(self.subnodes[key])
                     else:
-                        self.subnodes[key]=self.subnodes[key][0]
+                        self.subnodes[key] = self.subnodes[key][0]
 
-        tmeta={}
+        tmeta = {}
         for key in self.subnodes:
             merge_metas(tmeta, self.subnodes[key][0].meta)
-                             
+
         for key in self.subnodes:
             merge_metas(self.subnodes[key][0].meta, tmeta)
-            
+
         return self.subnodes

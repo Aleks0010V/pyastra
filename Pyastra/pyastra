@@ -43,11 +43,13 @@ Usage
           Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
           MA 02111-1307, USA.
 @contact: U{http://pyastra.sourceforge.net}
-@see: L{convertors}
+@see: L{converters}
 """
 
-import sys, os.path, getopt, pyastra
-from pprint import pformat
+import getopt
+import os.path
+import Pyastra as pyastra  # ToDo - fix this import
+import sys
 
 
 def select(variants):
@@ -75,14 +77,14 @@ def say(message, level, line):
     @see pyastra.Pyastra
     """
     outstr = ''
-    if level != pyastra.MESSAGE:
+    if level != pyastra.lib.MESSAGE:
         outstr += '%s: ' % ('', 'WARNING', 'ERROR')[level]
 
     if line is not None:
         outstr += 'line %i: ' % line
 
     outstr = '%s%s' % (outstr, message)
-    if level < pyastra.ERROR:
+    if level < pyastra.lib.ERROR:
         print(outstr)
     else:
         sys.stderr.write(outstr + '\n')
@@ -90,7 +92,7 @@ def say(message, level, line):
 
 def usage():
     """Displays the usage message"""
-    print(f"""{pyastra.version} usage:
+    print(f"""{pyastra.lib.version} usage:
 pyastra [options] infile
 
 General options:
@@ -120,7 +122,7 @@ General options:
             fopts_s += '  %-3s %-12s %s\n' % (skey, lkey, opt.descr)
 
     if fopts_s:
-        print('Convertor-specific options:')
+        print('Converter-specific options:')
         print(fopts_s)
 
 
@@ -315,8 +317,8 @@ if pstr:
     print()
     print(f'Total:{pstr}.')
 
-# Save the output of the convertors
+# Save the output of the converters
 for r in results:
-    f = file('%s.%s' % (out_name, r.ext), 'w')
+    f = open(f'{out_name}.{r.ext}', 'w')
     f.write(r.data)
     f.close()

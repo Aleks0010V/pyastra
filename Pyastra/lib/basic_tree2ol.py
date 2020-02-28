@@ -46,7 +46,7 @@ Namespaces feature implementing plan
           Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
           MA 02111-1307, USA.
 @contact: U{http://pyastra.sourceforge.net}
-@see: L{convertors}
+@see: L{converters}
 @todo: Finish namespaces implementation.
 @todo: Fix bank selection. Bank must be set to None:
     - (DONE) Call instruction.
@@ -68,18 +68,24 @@ Namespaces feature implementing plan
     - Pages support is broken
 """
 
+import os.path
+import Pyastra
+import Pyastra.lib.ports.pic14
+import Pyastra.lib.ports.pic14.procs
+import types
+
+from Pyastra.lib import Option, MESSAGE, WARNING, ERROR
 from compiler.ast import *
-import types, compiler, sys, os.path, pyastra.ports.pic14, pyastra.ports.pic14.procs, pyastra
-from pyastra import Option, MESSAGE, WARNING, ERROR
 
 BASIC_OPTIONS = (
-        Option('Disable namespaces support (pyastra 0.0.4 compatibility mode)', lkey='disable_ns'),
-        )
+    Option('Disable namespaces support (pyastra 0.0.4 compatibility mode)', lkey='disable_ns'),
+)
+
 
 class BasicTreeConvertor:
     """
     Main convertor class
-    @see: L{convertors}
+    @see: L{converters}
 
     @cvar lbl_stack: Stack of lables.
     @cvar tmp_var: Latest temporary variable number.
@@ -128,24 +134,24 @@ class BasicTreeConvertor:
     """
     meta = {}
 
-    tmp_var=-1
-    uvars={}
-    lbl_stack=[]
-    funcs={}
-    verbatim=False
-    ram_usage=1
-    infunc=False
+    tmp_var = -1
+    uvars = {}
+    lbl_stack = []
+    funcs = {}
+    verbatim = False
+    ram_usage = 1
+    infunc = False
     interr = []
     in_inter = False
-    inter_ret=''
+    inter_ret = ''
 
     def __init__(self, src, opts):
         global WARNING, ERROR
-        self.modified=False
+        self.modified = False
         if opts.get('port', self.PORT) != self.PORT:
             return
         self.src_line = None
-        self.opts=opts
+        self.opts = opts
         self.func_name = None
         self.src = None
         self.line_from = 1
@@ -158,54 +164,54 @@ class BasicTreeConvertor:
         self.namespace = ''
         self.data = []
         procs = __import__('pyastra.ports.%s.procs' % self.PORT,
-                globals(), locals(), ['']).__all__
+                           globals(), locals(), ['']).__all__
         fprocs = filter(lambda item: item[-1] != 'i', procs)
         if opts.setdefault('proc', self.DEFAULT_PROC) not in fprocs:
             return
-        
-        PROC=opts['proc']
+
+        PROC = opts['proc']
         if opts['icd']:
             if PROC + 'i' not in procs:
                 self.say('Seems like microcontroller %s doesn\'t support ICD.' % opts['proc'], ERROR)
                 return
             else:
-                PROC+='i'
-            
+                PROC += 'i'
+
         self.PROC = PROC
-        self.ICD=opts['icd']
-        self.op_speed=False
+        self.ICD = opts['icd']
+        self.op_speed = False
         self.procmod = __import__('pyastra.ports.%s.procs.%s' %
-                (self.PORT, PROC), globals(), locals(), '*')
+                                  (self.PORT, PROC), globals(), locals(), '*')
         self.vectors = self.procmod.vectors
-        AsmObject.hdikt  = self.hdikt  = Variable.hdikt = self.procmod.hdikt
-        AsmObject.banks  = self.banks  = self.procmod.banks
-        AsmObject.pages  = self.pages  = self.procmod.pages
+        AsmObject.hdikt = self.hdikt = Variable.hdikt = self.procmod.hdikt
+        AsmObject.banks = self.banks = self.procmod.banks
+        AsmObject.pages = self.pages = self.procmod.pages
         AsmObject.shareb = self.shareb = self.procmod.shareb
         AsmObject.maxram = self.maxram = self.procmod.maxram
-        AsmObject.uvars  = self.uvars
+        AsmObject.uvars = self.uvars
         Variable.mmap = MemoryMap(self.procmod.banks)
-        
+
         for var_name in self.hdikt:
-            var = Variable(var_name, addr = self.hdikt[var_name],
-                    special = True)
+            var = Variable(var_name, addr=self.hdikt[var_name],
+                           special=True)
             self.uvars[var_name] = var
-        
+
         gp_ram_max = 0
         for i in self.procmod.banks:
             gp_ram_max += i[1] - i[0] + 1
-        
+
         self.max_instr = 0
         for i in self.pages:
             self.max_instr += i[1] - i[0] + 1
-            
+
         self.convert(src)
-        
-        self.meta={
+
+        self.meta = {
             'max_instr': self.max_instr,
             'gp_ram_max': gp_ram_max,
-            }
+        }
         if not self.has_errors:
-            self.modified=True
+            self.modified = True
 
     def convert(self, node):
         """
@@ -217,20 +223,20 @@ class BasicTreeConvertor:
           root. Fix the same code in file2tree.
         """
         global WARNING, ERROR
-        
+
         self.cvar = MemoryMap(self.procmod.banks)
-            
+
         # Import builtins
-        name=os.path.join(__import__('pyastra.ports.%s' % self.PORT,
-            globals(), locals(), ['']).__path__[0], 'builtins.py')
+        name = os.path.join(__import__('pyastra.ports.%s' % self.PORT,
+                                       globals(), locals(), ['']).__path__[0], 'builtins.py')
         c = pyastra.Pyastra(name, self.opts['caller_select'], self.say,
-                trg_t = ['tree'], opts = self.opts.copy(), src_t = 'file')
-        root=c.convert()[0].data
+                            trg_t=['tree'], opts=self.opts.copy(), src_t='file')
+        root = c.convert()[0].data
         self._convert(root)
 
-        self.verbatim=False
-        
-        addrs=[]
+        self.verbatim = False
+
+        addrs = []
         if node.interrupts_on:
             if (len(self.banks) == 1
                     and self.banks[0][1] - self.banks[0][0] >= 4):
@@ -238,72 +244,72 @@ class BasicTreeConvertor:
                     addrs += [addr]
             else:
                 for part in self.shareb:
-                    #Check that part is not SFR
-                    addrs=[]
+                    # Check that part is not SFR
+                    addrs = []
                     in_bank = 0
                     for bank in self.banks:
                         if bank[0] <= part[0][0] <= bank[1]:
                             in_bank = 1
                             break
-                        
-                    if not in_bank or part[0][1]-part[0][0]+1 < 4:
+
+                    if not in_bank or part[0][1] - part[0][0] + 1 < 4:
                         continue
 
                     in_banks_until = -1
-                    
+
                     for sub in part:
                         if sub[0] >> 7 == in_banks_until + 1:
                             in_banks_until += 1
                         else:
                             break
-                    
+
                     if in_banks_until == self.maxram >> 7:
-                        for i in xrange(part[0][0], part[0][1]+1):
+                        for i in xrange(part[0][0], part[0][1] + 1):
                             if not self.cvar.is_reserved(i):
                                 addrs += [i]
                                 if len(addrs) == 5:
                                     break
                         if len(addrs) == 5:
                             break
-                    
+
         if len(addrs) >= 5:
             self.get_var('var_w_temp', addr=addrs[0],
-                    system = True).used = True
+                         system=True).used = True
             self.get_var('var_status_temp', addr=addrs[1],
-                    system = True).used = True
+                         system=True).used = True
             self.get_var('var_pclath_temp', addr=addrs[2],
-                    system = True).used = True
+                         system=True).used = True
             self.get_var('var_test_temp', addr=addrs[3],
-                    system = True).used = True
+                         system=True).used = True
             self.get_var('var_test', addr=addrs[4],
-                    system = True).used = True
+                         system=True).used = True
         else:
-            self.get_var('var_test', system = True).used = True
+            self.get_var('var_test', system=True).used = True
 
         self._convert(node)
-        
+
         self.data = self.get_header() + \
-                [AsmObject("\nmain\n", verbatim = True)] + \
-                self.data + self.get_main_footer()
+                    [AsmObject("\nmain\n", verbatim=True)] + \
+                    self.data + self.get_main_footer()
 
         if self.ICD:
             self.ram_usage += 1
-            
+
         fbuf = []
-        
+
         used = used_last = []
         unknown = []
-        
+
         for f in self.funcs.itervalues():
             if None in f.callers or 'on_interrupt' in f.callers:
                 used += [f]
             else:
                 unknown += [f]
-        
-        if used and not(len(used) == 1 and used == 'on_interrupt'):
+
+        if used and not (len(used) == 1 and used == 'on_interrupt'):
             self.data += [AsmObject("\n;\n; SUBROUTINES\n;\n\n",
-                    verbatim = True)]
-            
+                                    verbatim=True)]
+
         while unknown and used_last:
             ul_new = []
             uk_new = []
@@ -317,10 +323,10 @@ class BasicTreeConvertor:
             used_last = ul_new
             used += used_last
             unknown = uk_new
-            
+
         for f in used:
             fbuf += f.body
-            
+
         self.data += fbuf + self.get_footer()
 
     def get_header(self):
@@ -328,7 +334,7 @@ class BasicTreeConvertor:
 
     get_footer = get_main_footer = get_header
 
-    def say(self, message, level = MESSAGE, line = None):
+    def say(self, message, level=MESSAGE, line=None):
         global MESSAGE, ERROR
         if level == ERROR:
             self.has_errors = True
@@ -353,12 +359,12 @@ class BasicTreeConvertor:
         @type  node: C{Node}
         """
         if (not isinstance(node, list)
-                and node != None
+                and node is not None
                 and self.src
                 and node.lineno):
             self.line_to = node.lineno
-            
-        if node==None:
+
+        if node is None:
             return
         elif isinstance(node, list):
             for n in node:
@@ -369,19 +375,19 @@ class BasicTreeConvertor:
                 getattr(self, conv_name).__call__(node)
             else:
                 self.conv_default(node)
-        
+
     def conv_add(self, node):
         self._convert(node.left)
-        buf=self.push()
+        buf = self.push()
         self.ll_movwf(buf)
         self._convert(node.right)
         self.ll_addwf(buf, 'w')
-            
+
     def conv_and(self, node):
-        end_lbl=Label('and_end')
+        end_lbl = Label('and_end')
         for n in xrange(len(node.nodes)):
             self._convert(node.nodes[n])
-            if n+1 != len(node.nodes):
+            if n + 1 != len(node.nodes):
                 self.data[-1].fix_test_enabled = True
                 self.ll_btfsc('STATUS', 'Z')
                 self.ll_goto(end_lbl)
@@ -392,17 +398,17 @@ class BasicTreeConvertor:
         self.conv_assname(node)
 
     def conv_assign(self, node):
-        all_names=1
-        any_sscr=0
-        all_sscr=1
+        all_names = 1
+        any_sscr = 0
+        all_sscr = 1
         for n in node.nodes:
             if not (isinstance(n, AssName) or isinstance(n, AssAttr)):
-                all_names=0
+                all_names = 0
             if isinstance(n, Subscript):
-                any_sscr=1
+                any_sscr = 1
             else:
-                all_sscr=0
-                
+                all_sscr = 0
+
         if (all_names
                 and isinstance(node.expr, Const)
                 and node.expr.value == 0):
@@ -411,13 +417,13 @@ class BasicTreeConvertor:
         elif any_sscr:
             if not all_sscr:
                 self.say('mixing bit and byte assign is not supported.',
-                        ERROR, self.lineno(node))
+                         ERROR, self.lineno(node))
             elif isinstance(node.expr, Const):
                 if node.expr.value:
                     oper = self.ll_bsf
                 else:
                     oper = self.ll_bcf
-                    
+
                 for n in node.nodes:
                     try:
                         var = self.get_var(n.expr)
@@ -457,7 +463,8 @@ class BasicTreeConvertor:
                             elif isinstance(i, Name) and i.name in self.hdikt:
                                 self.ll_bcf(var, str(i.name))
                             else:
-                                self.say('Only constant indices are supported while in some cases.', ERROR, self.lineno(node))
+                                self.say('Only constant indices are supported while in some cases.', ERROR,
+                                         self.lineno(node))
                                 return
                 self.ll_goto(lbl_exit)
                 self.app(lbl_else)
@@ -465,7 +472,7 @@ class BasicTreeConvertor:
                     if not isinstance(n.expr, Name):
                         self.say('Bit assign may be applied to bytes only.', ERROR, self.lineno(node))
                     else:
-                        var=self.get_var(n.expr)
+                        var = self.get_var(n.expr)
                         for i in n.subs:
                             if isinstance(i, Const):
                                 self.ll_bsf(var, str(i.value))
@@ -476,24 +483,24 @@ class BasicTreeConvertor:
                 self.app(lbl_exit)
             else:
                 self._convert(If([(node.expr,
-                    Stmt([Assign(node.nodes, Const(1))]))],
-                    Stmt([Assign(node.nodes, Const(0))])))
+                                   Stmt([Assign(node.nodes, Const(1))]))],
+                                 Stmt([Assign(node.nodes, Const(0))])))
         else:
             self._convert(node.expr)
-            
+
             for n in node.nodes:
                 self._convert(n)
 
     def conv_assname(self, node):
-        if node.flags=='OP_ASSIGN':
+        if node.flags == 'OP_ASSIGN':
             self.ll_movwf(self.get_var(node))
         else:
             self.say('%s flag is not supported while.' % node.flags,
-                    ERROR, self.lineno(node))
+                     ERROR, self.lineno(node))
 
     def conv_augassign(self, node):
-        var=self.get_var(node.node, check = True)
-            
+        var = self.get_var(node.node, check=True)
+
         if node.op == '+=':
             self._convert(node.expr)
             self.ll_addwf(var, 'f')
@@ -529,9 +536,9 @@ class BasicTreeConvertor:
             self.ll_iorwf(var, 'f')
         else:
             self.say('augmented assign %s is not supported while.' % node.op, ERROR, self.lineno(node))
-                    
+
     def conv_bitand(self, node):
-        buf=self.push()
+        buf = self.push()
         self._convert(node.nodes[0])
         self.ll_movwf(buf)
         for n in node.nodes[1:-1]:
@@ -541,7 +548,7 @@ class BasicTreeConvertor:
         self.ll_andwf(buf, 'w')
 
     def conv_bitor(self, node):
-        buf=self.push()
+        buf = self.push()
         self._convert(node.nodes[0])
         self.ll_movwf(buf)
         for n in node.nodes[1:-1]:
@@ -551,7 +558,7 @@ class BasicTreeConvertor:
         self.ll_iorwf(buf, 'w')
 
     def conv_bitxor(self, node):
-        buf=self.push()
+        buf = self.push()
         self._convert(node.nodes[0])
         self.ll_movwf(buf)
         for n in node.nodes[1:-1]:
@@ -566,16 +573,17 @@ class BasicTreeConvertor:
     def conv_callfunc(self, node):
         if node.star_args or node.dstar_args:
             self.say('*-args and **-args are not supported while', ERROR)
-            
+
         if isinstance(node.node, Name):
             # TODO: Check whether it requires a namespace fix
             if node.node.name == 'asm':
-                err_mesg='asm function has the following syntax: asm(code [, instr_count [, (local_var1, local_var2, ...)]])'
+                err_mesg = 'asm function has the following syntax: asm(code [, instr_count [, (local_var1, local_var2, ...)]])'
                 if len(node.args) == 1 and isinstance(node.args[0], Const):
                     self.app('\n; -- Parsed verbatim inclusion:\n', verbatim=True)
                     self.parse_asm(node.args[0].value)
                     self.app('\n; -- End of parsed verbatim inclusion\n', verbatim=True)
-                elif not (2 <= len(node.args) <= 3 and isinstance(node.args[0], Const) and isinstance(node.args[1], Const)):
+                elif not (2 <= len(node.args) <= 3 and isinstance(node.args[0], Const) and isinstance(node.args[1],
+                                                                                                      Const)):
                     self.say(err_mesg, ERRROR)
                     return
                 else:
@@ -592,8 +600,9 @@ class BasicTreeConvertor:
                                     self.say('Local variables names must be constant strings.', ERROR)
                                     return
                                 self.get_var(i.value)
-                    
-                    self.app('\n; -- Verbatim inclusion:\n%s\n; -- End of verbatim inclusion\n' % node.args[0].value, raw = True, pmem = node.args[1].value)
+
+                    self.app('\n; -- Verbatim inclusion:\n%s\n; -- End of verbatim inclusion\n' % node.args[0].value,
+                             raw=True, pmem=node.args[1].value)
                     self.app('\n\terrorlevel\t-302\n', verbatim=True)
                 return
             elif node.node.name == 'fbin':
@@ -602,17 +611,17 @@ class BasicTreeConvertor:
                         or not isinstance(node.args[0].value, str)):
                     self.say('fbin(\'0101 0101\') function takes only one argument: binary number', ERROR)
                     return
-                
-                val=0
+
+                val = 0
                 for i in node.args[0].value:
                     if i != ' ':
-                        val=val << 1
+                        val = val << 1
                         if i == '1':
-                            val+=int(i)
+                            val += int(i)
                         elif i != '0':
                             self.say('fbin(\'0101 0101\') function takes only one argument: binary number', ERROR)
                             return
-                    
+
                 self._convert(Const(val))
                 return
             elif node.node.name == 'pragma_varaddr':
@@ -621,64 +630,68 @@ class BasicTreeConvertor:
                         or not isinstance(node.args[0].value, str)
                         or not isinstance(node.args[1], Const)
                         or not isinstance(node.args[1].value, int)):
-                    self.say('pragrma_varaddr(name, addr) function takes exactly two arguments: variable name and its address.', ERROR)
+                    self.say(
+                        'pragrma_varaddr(name, addr) function takes exactly two arguments: variable name and its address.',
+                        ERROR)
                     return
                 self.get_var(node.args[0].value).set_addr(node.args[1].value)
                 return
             else:
-                func_name=node.node.name
+                func_name = node.node.name
         elif isinstance(node.node, Getattr):
-            func_name = self.name_with_ns(node.node, func = True)
+            func_name = self.name_with_ns(node.node, func=True)
         else:
             self.say('only functions are callable while', ERROR)
             return
-        
+
         if func_name not in self.funcs:
-            self.say('function %s is not defined before call (this is not supported while)' % func_name, ERROR, self.lineno(node))
+            self.say('function %s is not defined before call (this is not supported while)' % func_name, ERROR,
+                     self.lineno(node))
             return
         else:
             self.funcs[func_name].add_caller(self.curr_func)
-            
-        if  len(self.funcs[func_name].args) != len(node.args):
-            self.say('function %s requires exactly %g argument(s)' % (func_name, len(self.funcs[func_name].args)), ERROR)
+
+        if len(self.funcs[func_name].args) != len(node.args):
+            self.say('function %s requires exactly %g argument(s)' % (func_name, len(self.funcs[func_name].args)),
+                     ERROR)
             return
-                     
+
         for i in xrange(len(node.args)):
-            (arg, val)=(self.funcs[func_name].args[i], node.args[i])
+            (arg, val) = (self.funcs[func_name].args[i], node.args[i])
             self._convert(val)
             self.ll_movwf(arg)
         self.ll_call('func_%s' % func_name)
-                    
+
     def conv_compare(self, node):
         if len(node.ops) != 1:
             self.say('Currently multiple comparisons are not supported', ERROR, self.lineno(node))
         buf = self.push()
-        nodes=node.ops
-        if nodes[0][0]=='<':
-            lbl_false=Label('compare_false')
+        nodes = node.ops
+        if nodes[0][0] == '<':
+            lbl_false = Label('compare_false')
             self._convert(node.expr)
             self.ll_movwf(buf)
             self._convert(nodes[0][1])
-            self.ll_subwf(buf, 'w') # node.expr - nodes[0][1] should be < 0 (Z=0 and C=0)
+            self.ll_subwf(buf, 'w')  # node.expr - nodes[0][1] should be < 0 (Z=0 and C=0)
             self.ll_btfsc('STATUS', 'Z')
-            self.ll_goto(lbl_false) # node.expr = nodes[0][1]
-            self.ll_bcf('STATUS', 'Z') # true
+            self.ll_goto(lbl_false)  # node.expr = nodes[0][1]
+            self.ll_bcf('STATUS', 'Z')  # true
             self.ll_btfsc('STATUS', 'C')
             self.app(lbl_false)
-            self.ll_bsf('STATUS', 'Z') # false
-        elif nodes[0][0]=='>':
-            lbl_false=Label('compare_false')
+            self.ll_bsf('STATUS', 'Z')  # false
+        elif nodes[0][0] == '>':
+            lbl_false = Label('compare_false')
             self._convert(node.expr)
             self.ll_movwf(buf)
             self._convert(nodes[0][1])
-            self.ll_subwf(buf, 'w') # node.expr - nodes[0][1] should be > 0 (Z=0 and C=1)
+            self.ll_subwf(buf, 'w')  # node.expr - nodes[0][1] should be > 0 (Z=0 and C=1)
             self.ll_btfsc('STATUS', 'Z')
-            self.ll_goto(lbl_false) # node.expr = nodes[0][1]
-            self.ll_bcf('STATUS', 'Z') # true
+            self.ll_goto(lbl_false)  # node.expr = nodes[0][1]
+            self.ll_bcf('STATUS', 'Z')  # true
             self.ll_btfss('STATUS', 'C')
             self.app(lbl_false)
-            self.ll_bsf('STATUS', 'Z') # false
-        elif nodes[0][0]=='==':
+            self.ll_bsf('STATUS', 'Z')  # false
+        elif nodes[0][0] == '==':
             self._convert(node.expr)
             self.ll_movwf(buf)
             self._convert(nodes[0][1])
@@ -686,90 +699,92 @@ class BasicTreeConvertor:
             self.ll_movf('STATUS', 'w')
             self.ll_xorlw('1 << Z')
             self.ll_movwf('STATUS')
-        elif nodes[0][0]=='<=':
-            lbl_true=Label('compare_true')
+        elif nodes[0][0] == '<=':
+            lbl_true = Label('compare_true')
             self._convert(node.expr)
             self.ll_movwf(buf)
             self._convert(nodes[0][1])
-            self.ll_subwf(buf, 'w') # node.expr - nodes[0][1] should be <= 0 (Z=1 or C=0)
+            self.ll_subwf(buf, 'w')  # node.expr - nodes[0][1] should be <= 0 (Z=1 or C=0)
             self.ll_btfsc('STATUS', 'Z')
-            self.ll_goto(lbl_true) # node.expr = nodes[0][1]
-            self.ll_bsf('STATUS', 'Z') # false
+            self.ll_goto(lbl_true)  # node.expr = nodes[0][1]
+            self.ll_bsf('STATUS', 'Z')  # false
             self.ll_btfss('STATUS', 'C')
             self.app(lbl_true)
-            self.ll_bcf('STATUS', 'Z') # true
-        elif nodes[0][0]=='>=':
-            lbl_true=Label('compare_true')
+            self.ll_bcf('STATUS', 'Z')  # true
+        elif nodes[0][0] == '>=':
+            lbl_true = Label('compare_true')
             self._convert(node.expr)
             self.ll_movwf(buf)
             self._convert(nodes[0][1])
-            self.ll_subwf(buf, 'w') # node.expr - nodes[0][1] should be >= 0 (Z=1 or C=1)
+            self.ll_subwf(buf, 'w')  # node.expr - nodes[0][1] should be >= 0 (Z=1 or C=1)
             self.ll_btfsc('STATUS', 'Z')
-            self.ll_goto(lbl_true) # node.expr = nodes[0][1]
-            self.ll_bsf('STATUS', 'Z') # false
+            self.ll_goto(lbl_true)  # node.expr = nodes[0][1]
+            self.ll_bsf('STATUS', 'Z')  # false
             self.ll_btfsc('STATUS', 'C')
             self.app(lbl_true)
-            self.ll_bcf('STATUS', 'Z') # true
-        elif nodes[0][0]=='!=':
+            self.ll_bcf('STATUS', 'Z')  # true
+        elif nodes[0][0] == '!=':
             self._convert(node.expr)
             self.ll_movwf(buf)
             self._convert(nodes[0][1])
             self.ll_subwf(buf, 'w')
-#        elif nodes[0][0]=='is':
-#        elif nodes[0][0]=='is not':
-#        elif nodes[0][0]=='in':
-#        elif nodes[0][0]=='not in':
+        #        elif nodes[0][0]=='is':
+        #        elif nodes[0][0]=='is not':
+        #        elif nodes[0][0]=='in':
+        #        elif nodes[0][0]=='not in':
         else:
             self.say('comparison %s is not supported while.' % node.op, ERROR, self.lineno(node))
-                    
+
     def conv_const(self, node):
-        self.ll_movlw(self.formatConst(node.value), fix_test = True)
+        self.ll_movlw(self.formatConst(node.value), fix_test=True)
 
     def conv_continue(self, node):
         self.ll_goto(self.lbl_stack[-1][0])
 
     def conv_discard(self, node):
-            if isinstance(node.expr, Const) and node.expr.value==None:
-                return
-            else:
-                self._convert(node.expr)
+        if isinstance(node.expr, Const) and node.expr.value is None:
+            return
+        else:
+            self._convert(node.expr)
 
     def conv_for(self, node):
         if not (isinstance(node.list, CallFunc) and
                 isinstance(node.list.node, Name) and
                 node.list.node.name in ('xrange' or 'range') and
-                len(node.list.args)==2 and
-                node.list.star_args==None and
-                node.list.dstar_args==None):
-            self.say('only "for <var> in xrange(<from>, <to>)" or "for <var> in range(<from>, <to>)" for statement is supported while', ERROR, self.lineno(node))
+                len(node.list.args) == 2 and
+                node.list.star_args is None and
+                node.list.dstar_args is None):
+            self.say(
+                'only "for <var> in xrange(<from>, <to>)" or "for <var> in range(<from>, <to>)" for statement is supported while',
+                ERROR, self.lineno(node))
             return
         cntr = self.get_var(node.assign.name)
         self._convert(Assign([node.assign], node.list.args[0]))
-        
-        lbl_beg=Label('for_begin')
-        lbl_else=Label('for_else')
-        lbl_cont=Label('for_continue')
-        if node.else_ != None:
-            lbl_end=Label('for_end')
+
+        lbl_beg = Label('for_begin')
+        lbl_else = Label('for_else')
+        lbl_cont = Label('for_continue')
+        if node.else_ is not None:
+            lbl_end = Label('for_end')
         else:
-            lbl_end=lbl_else
+            lbl_end = lbl_else
 
         self.lbl_stack.append((lbl_cont, lbl_end))
-            
+
         if (isinstance(node.list.args[1], Const)
-                and node.list.args[1].value==256):
-            #skip whole loop if cntr==255
+                and node.list.args[1].value == 256):
+            # skip whole loop if cntr==255
             self.ll_movf(cntr, 'w')
             self.ll_sublw('0xff')
             self.ll_btfsc('STATUS', 'Z')
             self.ll_goto(lbl_else)
-            
+
             self.app(lbl_beg)
-            
+
             self._convert(node.body)
-            
+
             self.app(lbl_cont)
-            
+
             self.ll_incf(cntr, 'f')
 
             self.ll_movf(cntr, 'f')
@@ -779,109 +794,110 @@ class BasicTreeConvertor:
             limit = self.push()
             self._convert(node.list.args[1])
             self.ll_movwf(limit)
-            
+
             self.app(lbl_beg)
-            
+
             self.ll_movf(limit, 'w')
             self.ll_subwf(cntr, 'w')
-            self.ll_btfsc('STATUS', 'Z') #skip if cntr - limit != 0
+            self.ll_btfsc('STATUS', 'Z')  # skip if cntr - limit != 0
             self.ll_goto(lbl_else)
-            self.ll_btfsc('STATUS', 'C') #skip if cntr - limit  < 0
+            self.ll_btfsc('STATUS', 'C')  # skip if cntr - limit  < 0
             self.ll_goto(lbl_else)
-            
+
             self._convert(node.body)
-            
+
             self.app(lbl_cont)
-            
+
             self.ll_incf(cntr, 'f')
             self.ll_goto(lbl_beg)
-        
-        if node.else_ != None:
+
+        if node.else_ is not None:
             self.app(lbl_else)
             self._convert(node.else_)
-        
+
         self.app(lbl_end)
         del self.lbl_stack[-1]
 
     def conv_function(self, node):
         if self.namespace and node.name != 'on_interrupt':
-            func_name='_%s.%s' % (self.namespace, node.name)
+            func_name = '_%s.%s' % (self.namespace, node.name)
         else:
-            func_name=node.name
-            
+            func_name = node.name
+
         if (func_name in self.funcs):
             self.say('function %s is already defined.' % func_name, ERROR)
             return
-                
+
         if node.flags:
             self.say('function flags are not supported while.', ERROR)
-            
+
         if node.defaults:
             self.say('function defaults are not supported while.', ERROR)
-            
+
         args = []
         for a in node.argnames:
             args += [self.get_var(a)]
-            
-        tdata=self.data
-        
+
+        tdata = self.data
+
         self.infunc = True
         if func_name == 'on_interrupt':
-            self.in_inter=True
+            self.in_inter = True
             self.curr_func = 'on_interrupt'
             if not self.vectors:
                 self.say('Selected processor does not support interrupts!', ERROR)
                 return
-            if not self.uvars.has_key('var_w_temp'):
+            if not 'var_w_temp' in self.uvars:
                 self.say('Pyastra doesn\'t suppoort interrupts for selected processor while.', ERROR)
                 return
-            self.inter_ret=Label('interr_return')
+            self.inter_ret = Label('interr_return')
             self.data = []
             if self.interr:
-                self.say('One or more interrupt handlers already defined. New one is appended to the previous.', MESSAGE)
+                self.say('One or more interrupt handlers already defined. New one is appended to the previous.',
+                         MESSAGE)
             else:
                 self.conv_inter_start()
-            self.app('\n;\n; * Interrupts handler *\n;\n', verbatim = True)
+            self.app('\n;\n; * Interrupts handler *\n;\n', verbatim=True)
         else:
             self.data = []
             self.curr_func = AsmFunction()
-            self.app('\n;\n; * Function %s *\n;\n' % func_name, verbatim = True)
-            self.app('func_%s\n' % func_name, verbatim = True,
-                    org_enabled = True)
-            
+            self.app('\n;\n; * Function %s *\n;\n' % func_name, verbatim=True)
+            self.app('func_%s\n' % func_name, verbatim=True,
+                     org_enabled=True)
+
         self._convert(node.code)
-        
+
         if (not isinstance(node.code.nodes[-1], Return)
                 and func_name != 'on_interrupt'):
             self.ll_return()
-            
+
         if func_name == 'on_interrupt':
             self.app(self.inter_ret, verbatim=True)
             self.app(';\n; * End of interrups handler *\n;', verbatim=True)
             self.interr += self.data
         else:
             self.app(';\n; * End of function %s *\n;' % func_name,
-                    verbatim=True)
+                     verbatim=True)
             self.curr_func.args = args
             self.curr_func.body = self.data
             self.funcs[func_name] = self.curr_func
         self.curr_func = None
-        self.infunc=self.in_inter=False
-        self.data=tdata
+        self.infunc = self.in_inter = False
+        self.data = tdata
 
     def conv_getattr(self, node):
-        name=self.get_var(node)
+        name = self.get_var(node)
         if name:
             self._convert(Name(name))
 
     def conv_if(self, node):
         self.app(verbatim=True)
-        exit_lbl=Label('if_end')
-        
+        exit_lbl = Label('if_end')
+
         for n in node.tests:
             self._convert(n[0])
             self.data[-1].fix_test_enabled = True
-            label=Label('if_next_test')
+            label = Label('if_next_test')
             self.ll_btfsc('STATUS', 'Z')
             self.ll_goto(label)
             self._convert(n[1])
@@ -892,50 +908,50 @@ class BasicTreeConvertor:
 
     def conv_invert(self, node):
         self._convert(node.expr)
-        buf=self.push()
+        buf = self.push()
         self.ll_movwf(buf)
         self.ll_comf(buf, 'w')
 
     def conv_leftshift(self, node):
         if (isinstance(node.right, Const)
-                and self.formatConst(node.right.value)!=-1
+                and self.formatConst(node.right.value) != -1
                 and (node.right.value < 8 or self.op_speed)):
-            buf=self.push()
+            buf = self.push()
             self._convert(node.left)
             self.ll_movwf(buf)
-            for i in xrange(node.right.value-1):
+            for i in xrange(node.right.value - 1):
                 self.ll_rlf(buf, 'f')
             self.ll_rlf(buf, 'w')
         else:
             self._convert(Discard(CallFunc(Name('lshift'), [node.left,
-                node.right], None, None)))
+                                                            node.right], None, None)))
 
     def conv_module(self, node):
-        tmp_src   = self.src
+        tmp_src = self.src
         line_from = self.line_from
-        line_to   = self.line_to
-        
+        line_to = self.line_to
+
         if hasattr(node, 'src'):
             self.src = node.src.splitlines()
             self.line_from = 1
             self.line_to = 0
         else:
             self.src = None
-            
+
         if node.namespace:
-            astks='*'*(len(node.namespace)+11)
+            astks = '*' * (len(node.namespace) + 11)
             self.app('\n\n; %s\n; * Module %s *\n; %s\n' % (astks,
-                node.namespace, astks), verbatim=True)
+                                                            node.namespace, astks), verbatim=True)
             self.push_ns(node.namespace)
             self._convert(node.node)
             self.pop_ns()
-            astks='*'*(len(node.namespace)+18)
+            astks = '*' * (len(node.namespace) + 18)
             self.app('\n; %s\n; * End of module %s *\n; %s\n\n' % (astks,
-                node.namespace, astks), verbatim=True)
+                                                                   node.namespace, astks), verbatim=True)
         else:
             self._convert(node.node)
-            
-        self.src       = tmp_src
+
+        self.src = tmp_src
         self.line_from = line_from
         self.line_to = line_to
 
@@ -948,8 +964,8 @@ class BasicTreeConvertor:
             self.ll_movf(self.get_var(node), 'w')
 
     def conv_not(self, node):
-        lbl1=Label('not_set_true')
-        lbl_end=Label('not_end')
+        lbl1 = Label('not_set_true')
+        lbl_end = Label('not_end')
         self._convert(node.expr)
         self.data[-1].fix_test_enabled = True
         self.ll_btfsc('STATUS', 'Z')
@@ -961,11 +977,11 @@ class BasicTreeConvertor:
         self.app(lbl_end, fix_test=True)
 
     def conv_or(self, node):
-        lbl_end=Label('or_end')
+        lbl_end = Label('or_end')
         for n in xrange(len(node.nodes)):
             self._convert(node.nodes[n])
             self.data[-1].fix_test_enabled = True
-            if n+1 != len(node.nodes):
+            if n + 1 != len(node.nodes):
                 self.ll_btfss('STATUS', 'Z')
                 self.ll_goto(lbl_end)
         self.app(lbl_end)
@@ -974,26 +990,27 @@ class BasicTreeConvertor:
         return
 
     def conv_return(self, node):
-        if not (isinstance(node.value, Const) and node.value.value==None):
+        if not (isinstance(node.value, Const) and node.value.value is None):
             if self.in_inter:
                 self.say('Interrupt handler can not return any values! Ignoring...', WARNING)
             else:
                 self._convert(node.value)
                 self.data[-1].fix_test_enabled = True
-        
+
         if self.in_inter:
             self.ll_goto(self.inter_ret)
         else:
             self.ll_return()
 
     def conv_rightshift(self, node):
-        if isinstance(node.right, Const) and self.formatConst(node.right.value)!=-1 and (node.right.value < 8 or self.op_speed):
-            buf=self.push()
+        if isinstance(node.right, Const) and self.formatConst(node.right.value) != -1 and (
+                node.right.value < 8 or self.op_speed):
+            buf = self.push()
             self._convert(node.left)
             self.ll_movwf(buf)
-            for i in xrange(node.right.value-1):
+            for i in xrange(node.right.value - 1):
                 self.ll_rrf(buf, 'w')
-                
+
             self.ll_rrf(buf, 'f')
         else:
             self._convert(Discard(CallFunc(Name('rshift'), [node.left, node.right], None, None)))
@@ -1003,7 +1020,7 @@ class BasicTreeConvertor:
 
     def conv_sub(self, node):
         self._convert(node.left)
-        buf=self.push()
+        buf = self.push()
         self.ll_movwf(buf)
         self._convert(node.right)
         self.ll_subwf(buf, 'w')
@@ -1014,10 +1031,10 @@ class BasicTreeConvertor:
             self.say('Bit assign may be applied to bytes only.', ERROR, self.lineno(node))
         elif len(node.subs) != 1:
             self.say('More than one subscripts are not fully supported while.', ERROR, self.lineno(node))
-        elif not node.flags=='OP_APPLY':
+        elif not node.flags == 'OP_APPLY':
             self.say('Unsupported flag: %s.' % node.flags, ERROR, self.lineno(node))
         else:
-            name=self.get_var(node.expr)
+            name = self.get_var(node.expr)
             if isinstance(node.subs[0], Const):
                 self.ll_movlw('.0')
                 self.ll_btfsc(name, str(node.subs[0].value))
@@ -1039,7 +1056,7 @@ class BasicTreeConvertor:
     def conv_while(self, node):
         lbl_beg = Label('while_begin')
         lbl_end = Label('while_end')
-        if node.else_ != None:
+        if node.else_ is not None:
             lbl_else = Label('while_else')
         else:
             lbl_else = lbl_end
@@ -1051,7 +1068,7 @@ class BasicTreeConvertor:
         self.ll_goto(lbl_else)
         self._convert(node.body)
         self.ll_goto(lbl_beg)
-        if node.else_ != None:
+        if node.else_ is not None:
             self.app(lbl_else)
             self._convert(node.else_)
         self.app(lbl_end)
@@ -1077,7 +1094,7 @@ class BasicTreeConvertor:
         global ERROR
         if type(c) == types.IntType and 0 <= int(c) <= 0xff:
             return hex(c)
-        elif type(c) == types.StringType and len(c)==1:
+        elif type(c) == types.StringType and len(c) == 1:
             return "'%s'" % c
         else:
             self.say('%s type constant is not supported while.' % c.__class__.__name__, ERROR)
@@ -1102,7 +1119,7 @@ class BasicTreeConvertor:
         """
         if not self.disable_ns:
             self.namespace = self.namespaces_bak.pop()
-            
+
     def push(self):
         """
         Create a new temporary variable.
@@ -1112,11 +1129,11 @@ class BasicTreeConvertor:
         @todo: Give a more proper name.
         """
         self.tmp_var += 1
-        name='temp%g' % self.tmp_var
+        name = 'temp%g' % self.tmp_var
         self.uvars[name] = Variable(name)
         return self.uvars[name]
-    
-    def get_var(self, obj, check = False, addr = None, system = False):
+
+    def get_var(self, obj, check=False, addr=None, system=False):
         """
         Returns variable by its name or an AST object.
         
@@ -1128,22 +1145,22 @@ class BasicTreeConvertor:
           be changed.
         """
         global WARNING, ERROR
-        
+
         if system:
-            name = self.name_with_ns(obj, func = True)
+            name = self.name_with_ns(obj, func=True)
         else:
             name = self.name_with_ns(obj)
-        
+
         if name not in self.uvars:
             if check:
                 self.say("Variable %s must be initialized before use!" % name,
-                        ERROR)
+                         ERROR)
                 return
-            self.uvars[name] = Variable(name, addr = addr)
-        
+            self.uvars[name] = Variable(name, addr=addr)
+
         return self.uvars[name]
 
-    def name_with_ns(self, obj, func = False):
+    def name_with_ns(self, obj, func=False):
         """
         Get name of a variable from the current namespace.
         
@@ -1154,7 +1171,7 @@ class BasicTreeConvertor:
         @todo: Replace func argument with storing ns in AsmFunction.
         """
         global WARNING, ERROR
-        
+
         if isinstance(obj, Name) or isinstance(obj, AssName):
             name = obj.name
             if name not in self.hdikt:
@@ -1166,13 +1183,14 @@ class BasicTreeConvertor:
             expr = obj.expr
             name = obj.attrname
             while isinstance(expr, Getattr):
-                name=expr.attrname+'.'+name
-                expr=expr.expr
-                
+                name = expr.attrname + '.' + name
+                expr = expr.expr
+
             if isinstance(expr, Name):
-                self.say('Getattr and AssAttr is supported in current version for module attributes access only!', ERROR)
+                self.say('Getattr and AssAttr is supported in current version for module attributes access only!',
+                         ERROR)
                 return
-            
+
             name = expr.name + '.' + name
             if not func:
                 name = '_' + name
@@ -1187,10 +1205,10 @@ class BasicTreeConvertor:
             self.say('Object %s not supported!' % str(obj.__class__), ERROR)
             return
         return name
-    
-    def app(self, cmd = '', op1 = None, op2 = None, verbatim = False,
-            comment = '', fix_test = False, raw = False, pmem = None,
-            fix_cond_br = False, org_enabled = False, force_bank = False):
+
+    def app(self, cmd='', op1=None, op2=None, verbatim=False,
+            comment='', fix_test=False, raw=False, pmem=None,
+            fix_cond_br=False, org_enabled=False, force_bank=False):
         """
         Creates an L{AsmObject} and appends it to L{self.data}.
 
@@ -1208,24 +1226,24 @@ class BasicTreeConvertor:
         if self.src_en and self.src and self.line_to >= self.line_from:
             srclist = ''
             for line in xrange(self.line_from - 1,
-                    min(self.line_to, len(self.src))):
+                               min(self.line_to, len(self.src))):
                 srclist += ';%04i: %s\n' % (line + 1, self.src[line])
 
             if srclist:
-                ao = AsmObject(srclist, verbatim = True)
+                ao = AsmObject(srclist, verbatim=True)
                 self.data += [ao]
-                
+
             self.line_from = self.line_to + 1
-            
+
         if isinstance(cmd, Label):
             ao = cmd
             ao.fix_test = fix_test
         else:
             ao = AsmObject(cmd, op1, op2, verbatim, comment, fix_test, raw,
-                    fix_cond_br, org_enabled)
+                           fix_cond_br, org_enabled)
             ao.namespace = self.namespace
             ao.force_bank = force_bank
-            if pmem != None:
+            if pmem is not None:
                 ao.pmem = pmem
         self.data += [ao]
 
@@ -1234,6 +1252,7 @@ class BasicTreeConvertor:
             return self.ll_default
         else:
             raise AttributeError("BasicTreeConvertor instance has no attribute '%s'" % name)
+
 
 class AsmFunction:
     """
@@ -1244,14 +1263,16 @@ class AsmFunction:
     @type body: C{list} of C{AsmObject}s
     @ivar callsers: Functions that use this function
     """
+
     def __init__(self):
         self.args = []
         self.body = None
         self.callers = []
-        
+
     def add_caller(self, caller):
         if caller not in self.callers:
-             self.callers += [caller]
+            self.callers += [caller]
+
 
 class MemoryMap:
     """
@@ -1261,15 +1282,16 @@ class MemoryMap:
       are addresses, values contains a C{True} value if the memory cell
       is allocatable.
     """
+
     def __init__(self, banks):
         """
         @param banks: Register memory start and end addresses.
         """
-        self.mmap={}
+        self.mmap = {}
         for bank in banks:
-            for addr in xrange(bank[0], bank[1]+1):
+            for addr in xrange(bank[0], bank[1] + 1):
                 self.mmap[addr] = True
-                
+
     def reserve_byte(self, addr=None):
         """
         Reserve the given address.
@@ -1277,15 +1299,15 @@ class MemoryMap:
         @param addr: Address of the cell to be reserved.
         """
         if not len(self.mmap):
-            raise 'Program does not fit the RAM!'
-        
-        if addr == None:
-            k=self.mmap.keys()
+            raise Exception('Program does not fit the RAM!')
+
+        if addr is None:
+            k = self.mmap.keys()
             k.sort()
-            addr=k[0]
-        elif not self.mmap.has_key(addr):
+            addr = k[0]
+        elif addr not in self.mmap:
             raise 'Address %i is reserved or is not allocatable!' % addr
-        
+
         del self.mmap[addr]
         return addr
 
@@ -1296,8 +1318,8 @@ class MemoryMap:
         @param addr: Address of a cell.
         @returns: Whether addres is reserved (C{True}) or no (C{False}).
         """
-        return not self.mmap.has_key(addr)
-    
+        return not addr in self.mmap
+
     def free_byte(self, addr):
         """
         Free the given address.
@@ -1305,6 +1327,7 @@ class MemoryMap:
         @param addr: Address of the cell to be freed.
         """
         self.mmap[addr] = True
+
 
 class AsmObject:
     """
@@ -1346,10 +1369,10 @@ class AsmObject:
     @todo: New pages mechanism.
     """
     label_cmds = {}
-    
-    def __init__(self, cmd = '', op1 = None, op2 = None, verbatim = False,
-            comment = '', fix_test = False, raw = False, fix_cond_br = False,
-            org_enabled = False):
+
+    def __init__(self, cmd='', op1=None, op2=None, verbatim=False,
+                 comment='', fix_test=False, raw=False, fix_cond_br=False,
+                 org_enabled=False):
         """
         @param cmd: Instruction name or verbatim code to be included.
         @param op1: First operand of instruction.
@@ -1381,25 +1404,22 @@ class AsmObject:
                 and self.cmd in self.label_cmds
                 and isinstance(self.cmd, Label)):
             self.cmd.used = True
-            
+
         if isinstance(self.op1, Variable) or isinstance(self.op1, Label):
             self.op1.used = True
 
     def __str__(self):
-        return 'AsmObject(cmd=%s, op1=%s, op2=%s, verbatim=%s)' % (
-                repr(self.cmd),
-                repr(self.op1),
-                repr(self.op2),
-                repr(self.verbatim))
-    
+        return f'AsmObject(cmd={repr(self.cmd)}, op1={repr(self.op1)}, op2={repr(self.op2)}, verbatim={repr(self.verbatim)})'
+
+
 class Label(AsmObject):
     next_id = 0
-    
-    def __init__(self, prefix = 'label', fix_test = False, used = False):
+
+    def __init__(self, prefix='label', fix_test=False, used=False):
         self.used = used
         self.prefix = prefix
         self.uid = None
-        AsmObject.__init__(self, verbatim = True)
+        AsmObject.__init__(self, verbatim=True)
         self.fix_test = fix_test
         self.fix_test_enabled = False
         self.pmem = 0
@@ -1407,11 +1427,12 @@ class Label(AsmObject):
     def get_label(self):
         self.set_uid()
         return '%s_%i' % (self.prefix, self.uid)
-    
+
     def set_uid(self):
-        if self.uid == None:
+        if self.uid is None:
             self.uid = Label.next_id
             Label.next_id += 1
+
 
 class Variable:
     """
@@ -1427,7 +1448,8 @@ class Variable:
     @cvar mmap: Memory map.
     @cvar hdikt: Dictionary of processor-specific register names.
     """
-    def __init__(self, name, addr = None, used = False, special = False):
+
+    def __init__(self, name, addr=None, used=False, special=False):
         """
         @param name: Name of the variable to be created.
         @param care: True if the function should warn if the variable is
@@ -1436,36 +1458,36 @@ class Variable:
         @param special: True if variable is a special file register.
         """
         global ERROR
-        
+
         self.used = used
         self.addr = addr
         self.name = name
         self.special = special
-        
-        if not special and addr != None:
+
+        if not special and addr is not None:
             try:
                 self.mmap.reserve_byte(addr)
             except:
-                self.say("address %i is not allocatable" % addr, WARNING)
+                self.say(f"address {addr:d} is not allocatable", WARNING)
                 return
-            
+
     def get_addr(self):
         global ERROR
-        if self.addr == None:
+        if self.addr is None:
             try:
-                self.addr=self.mmap.reserve_byte()
+                self.addr = self.mmap.reserve_byte()
             except:
                 self.say("program does not fit RAM.", ERROR)
-                self.uvars[name]=None
+                self.uvars[self.name] = None
                 return
-        
+
         return self.addr
-    
+
     def set_addr(self, addr):
-        if self.addr != None:
+        if self.addr is not None:
             self.mmap.free_byte(addr)
 
         try:
             self.addr = self.mmap.reserve_byte(addr)
         except:
-            self.say('Address can\'t be allocated: %i' % addr, ERROR)
+            self.say(f"Address can't be allocated: {addr:d}", ERROR)
