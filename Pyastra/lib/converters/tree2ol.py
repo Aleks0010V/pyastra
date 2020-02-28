@@ -1,7 +1,7 @@
 ############################################################################
 # $Id$
 #
-# Description: pic14 tree to object list convertor. Pyastra project.
+# Description: pic14 tree to object list converter. Pyastra project.
 # Author: Alex Ziranov <estyler _at_ users _dot_ sourceforge _dot_ net>
 #    
 # Copyright (c) 2004 Alex Ziranov.  All rights reserved.
@@ -31,17 +31,14 @@ U{Pyastra project <http://pyastra.sourceforge.net>}.
 @contact: U{http://pyastra.sourceforge.net}
 """
 
-from compiler.ast import *
-import types
-import compiler
+from compiler.ast import Discard, CallFunc, Name  # ToDo - replace compiler
 import sys
 import os.path
-import Pyastra.lib.ports.pic14
-import Pyastra.lib.ports.pic14.procs
+import Pyastra.lib.ports.pic14 as pic14
 import Pyastra
 
 from Pyastra.lib import Option, MESSAGE, WARNING, ERROR
-from Pyastra.lib.basic_tree2ol import *
+from Pyastra.lib.basic_tree2ol import BASIC_OPTIONS, BasicTreeConverter, AsmObject, Label, Variable
 from Pyastra.lib import basic_tree2ol
 
 converts_from = 'tree'
@@ -57,7 +54,7 @@ def get_ports():
 def get_procs(port):
     """@return: A list of supported processors."""
     if port in PORTS:
-        procs = pyastra.ports.pic14.procs.__all__
+        procs = pic14.procs.__all__
         procs = filter(lambda item: item[-1] != 'i', procs)
         return procs
     else:
@@ -72,7 +69,7 @@ def get_options():
            ) + BASIC_OPTIONS
 
 
-class Convertor(BasicTreeConvertor):
+class Converter(BasicTreeConverter):
     """
     Main convertor class
     @see: L{converters}
@@ -90,7 +87,7 @@ class Convertor(BasicTreeConvertor):
     DEFAULT_PROC = 'pic16f877'
 
     def __init__(self, src, opts):
-        BasicTreeConvertor.__init__(self, src, opts)
+        BasicTreeConverter.__init__(self, src, opts)
 
     def conv_div(self, node):
         self._convert(Discard(CallFunc(Name('div'), [node.left, node.right], None, None)))
@@ -261,7 +258,7 @@ class Convertor(BasicTreeConvertor):
                     if op1:
                         op += [op1]
             comment = ''
-            for wn in xrange(len(op)):
+            for wn in range(len(op)):
                 if op[wn][0] == ';':
                     comment = s[s.find(op[wn]):]
                     op = op[:wn]
@@ -277,7 +274,7 @@ class Convertor(BasicTreeConvertor):
                       and (op[0].lower()
                            not in self.no_bank_cmds))):
                 if s[0].isspace():
-                    self.say('Can\'t parse line in asm function:\n%sIncluding the line unparsed.' % s, WARNING)
+                    self.say(f"Can't parse line in asm function:\n{s}Including the line unparsed.", WARNING)
                     raw = True
                     prev_op = ''
                     force_bank = False
@@ -342,7 +339,7 @@ class Pic14AsmObject(AsmObject):
         else:
             self.bank_after = self.bank_before
 
-        if self.force_bank != False:
+        if self.force_bank is not False:
             self.bank_after = self.force_bank
 
         if self.raw:
@@ -359,10 +356,10 @@ class Pic14AsmObject(AsmObject):
             self.bank_after = None
 
         if self.verbatim:
-            self.body += '%s\n' % self.cmd
+            self.body += f'{self.cmd}\n'
         else:
             if self.comment:
-                self.comment = '\t;%s' % self.comment
+                self.comment = f'\t;{self.comment}'
 
             if (self.op1 and (self.cmd not in self.no_bank_cmds)
                     and (self.cmd.lower() not in self.directives)):
@@ -372,15 +369,15 @@ class Pic14AsmObject(AsmObject):
                 self.op1 = self.op1.name
 
             if len(self.pages) > 1 and self.op1 and self.cmd == 'call':
-                self.body += '\tpagesel %s\n' % self.op1
+                self.body += f'\tpagesel {self.op1}\n'
                 self.pmem += 2
 
-            if self.op2 != None:
-                self.body += '\t%s\t%s,\t%s' % (self.cmd, self.op1, self.op2)
-            elif self.op1 != None:
-                self.body += '\t%s\t%s' % (self.cmd, self.op1)
+            if self.op2 is not None:
+                self.body += f'\t{self.cmd}\t{self.op1},\t{self.op2}'
+            elif self.op1 is not None:
+                self.body += f'\t{self.cmd}\t{self.op1}'
             else:
-                self.body += '\t%s' % (self.cmd,)
+                self.body += f'\t{self.cmd}'
 
             if self.cmd.lower() not in self.directives:
                 self.pmem += 1
@@ -402,8 +399,8 @@ class Pic14AsmObject(AsmObject):
             lbl_exit = Label('ao_exit', used=True).get_label()
 
             self.body = (
-                    ('\tgoto\t%s\n' % lbl_if)
-                    + ('\tgoto\t%s\n' % lbl_exit)
+                    f'\tgoto\t{lbl_if}\n'
+                    + f'\tgoto\t{lbl_exit}\n'
                     + lbl_if + '\n'
                     + self.body
                     + lbl_exit + '\n')
@@ -487,14 +484,14 @@ class Pic14Variable(Variable):
                     else:
                         break
 
-        if ((ao.bank_before == None or (bank & 1) ^ (ao.bank_before & 1))):
+        if ((ao.bank_before is None or (bank & 1) ^ (ao.bank_before & 1))):
             if bank & 1:
                 ret += '\tbsf\tSTATUS,\tRP0\n'
             else:
                 ret += '\tbcf\tSTATUS,\tRP0\n'
             ao.pmem += 1
 
-        if ((ao.bank_before == None or ((bank & 2) ^ (ao.bank_before & 2)))
+        if ((ao.bank_before is None or ((bank & 2) ^ (ao.bank_before & 2)))
                 and 'RP1' in self.hdikt):
             if bank & 2:
                 ret += '\tbsf\tSTATUS,\tRP1\n'
